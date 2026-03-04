@@ -1,0 +1,156 @@
+@import url(./common.css);
+
+/* 防止下拉时页面整体滚动 */
+body {
+    overscroll-behavior-y: contain;
+}
+
+#roomList {
+    padding: 8px;
+    background-color: rgb(var(--mdui-color-surface-container-low));
+    height: 95%;
+    position: relative;
+    transition: transform 0.3s ease;
+    max-height: calc(100dvh - 165px);
+}
+
+#roomList mdui-list-item {
+    margin-bottom: 8px;
+    cursor: pointer;
+}
+
+.room-header {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.room-name {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.room-desc {
+    font-size: 13px;
+    opacity: .7;
+}
+
+.room-meta {
+    display: flex;
+    gap: 12px;
+    font-size: 12px;
+    opacity: .8;
+    margin-top: 6px;
+}
+
+.last-message {
+    margin-top: 8px;
+    font-size: 13px;
+    opacity: .8;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.unread-badge {
+    margin-left: auto;
+}
+
+.page-container {
+    height: 100dvh;
+    overflow: auto;
+    background-color: rgb(var(--mdui-color-surface-container-low));
+    position: relative;
+}
+
+.pull-hint {
+    position: fixed;
+    top: 0px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    padding: 8px;
+    font-size: 14px;
+    color: rgba(var(--mdui-color-on-surface), 0.7);
+    background: rgb(var(--mdui-color-surface-container-low));
+    z-index: 100;
+    transform: translateY(-100%);
+    transition: transform 0.3s ease;
+    border-bottom: 1px solid rgba(var(--mdui-color-outline), 0.2);
+}
+
+.page {
+    display: none;
+    height: 100%;
+    overflow-y: auto;
+}
+
+.page.active {
+    display: block;
+}
+
+#page-create {
+    padding: 16px;
+}
+
+.me-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.me-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.me-nickname {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.me-email {
+    font-size: 13px;
+    opacity: 0.7;
+}
+
+.empty-state,
+.error-state {
+    text-align: center;
+    padding: 48px 16px;
+    color: var(--mdui-color-outline);
+}
+
+.empty-state mdui-icon,
+.error-state mdui-icon {
+    color: var(--mdui-color-outline);
+    margin-bottom: 16px;
+}
+
+.error-state mdui-button {
+    margin-top: 16px;
+}
+
+.last-message {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-bottom: 4px;
+}
+
+.room-meta {
+    display: flex;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--mdui-color-outline);
+}
+
+.room-meta span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.unread-badge {
+    margin-left: 8px;
+}

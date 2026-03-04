@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="mdui-theme-light">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>XQFChat · 登录</title>
+    <link rel="stylesheet" href="./src/css/login.css">
+    <link rel="shortcut icon" href="./unpackage/res/icons/192x192.png" type="image/x-icon">
+    <script src="./src/js/lib/mdui.global.min.js"></script>
+    <script type="module" src="./src/js/login.js"></script>
+</head>
+
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <div class="logo">
+                <mdui-icon style="font-size: 48px;">chat</mdui-icon>
+            </div>
+            <div class="title">Flmp Chat</div>
+            <div class="subtitle">登录或注册你的Flmp账号</div>
+        </div>
+        <form id="form">
+            <mdui-card class="login-card" variant="outlined">
+                <mdui-text-field id="email" name="email" label="邮箱" type="email" variant="outlined"
+                    clearable></mdui-text-field>
+                <mdui-text-field id="password" name="password" label="密码" type="password" variant="outlined"
+                    toggle-password></mdui-text-field>
+                <mdui-text-field id="emailVerifyVode" name="verify_code" label="邮箱验证码" type="text" variant="outlined"
+                    style="display: none;"></mdui-text-field>
+
+                <div style="display: flex; gap: 8px; align-items: flex-start; margin-top: 16px;">
+                    <mdui-text-field id="captchaInput" name="captcha_code" label="验证码" type="text" variant="outlined"
+                        style="flex: 1;" placeholder="请输入验证码" maxlength="6" required>
+                    </mdui-text-field>
+                    <img id="captcha" style="border-radius: var(--mdui-shape-corner-extra-small);cursor: pointer;height: 56px;"
+                        title="点击刷新验证码">
+                </div>
+
+                <mdui-button id="loginBtn" type="button" variant="filled" full-width style="margin-top: 16px;">
+                    登录 / 注册
+                </mdui-button>
+            </mdui-card>
+        </form>
+        <div class="login-footer">
+            <div class="footer-content">
+                <div class="footer-links">
+                    <a href="https://blog.xiaofengqwq.com" class="footer-link">作者博客</a>
+                    <span class="divider">|</span>
+                    <a href="https://xiaofengqwq.com" class="footer-link">作者主页</a>
+                    <span class="divider">|</span>
+                    <a href="https://gitee.com/XiaoFengQWQ/xqfchat" class="footer-link">Gitee</a>
+                </div>
+                <div class="copyright">
+                    © 2026 XQFChat. Open Source under the GNU GPL License.
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="loading" class="mdui-circular-progress-overlay" style="display:none;">
+        <mdui-circular-progress></mdui-circular-progress>
+    </div>
+    <mdui-fab id="theme-toggle" icon="dark_mode"></mdui-fab>
+</body>
+
+</html>

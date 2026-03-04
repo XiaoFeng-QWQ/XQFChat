@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="mdui-theme-light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>设置 - XQFChat</title>
+    <link rel="stylesheet" href="./src/css/settings.css">
+    <link rel="shortcut icon" href="./unpackage/res/icons/192x192.png" type="image/x-icon">
+    <script src="./src/js/lib/mdui.global.min.js"></script>
+    <script type="module" src="./src/js/settings.js"></script>
+</head>
+
+<body>
+    <mdui-top-app-bar variant="center-aligned">
+        <mdui-button-icon icon="arrow_back" onclick="window.location.href = 'index.html'"></mdui-button-icon>
+        <mdui-top-app-bar-title>设置</mdui-top-app-bar-title>
+        <div style="flex-grow: 1"></div>
+    </mdui-top-app-bar>
+    <mdui-layout>
+        <div class="settings-container">
+            <mdui-card variant="outlined" class="settings-card">
+                <div class="card-header">
+                    <mdui-icon>palette</mdui-icon>
+                    <span>主题配色</span>
+                </div>
+
+                <div class="color-presets">
+                    <div class="preset-title">预设配色</div>
+                    <div class="preset-grid">
+                        <div class="color-preset" data-color="#0061a4" style="background-color: #0061a4;" title="默认蓝">
+                        </div>
+                        <div class="color-preset" data-color="#7b1fa2" style="background-color: #7b1fa2;" title="紫色">
+                        </div>
+                        <div class="color-preset" data-color="#c2185b" style="background-color: #c2185b;" title="粉色">
+                        </div>
+                        <div class="color-preset" data-color="#e64a19" style="background-color: #e64a19;" title="橙色">
+                        </div>
+                        <div class="color-preset" data-color="#388e3c" style="background-color: #388e3c;" title="绿色">
+                        </div>
+                        <div class="color-preset" data-color="#d32f2f" style="background-color: #d32f2f;" title="红色">
+                        </div>
+                        <div class="color-preset" data-color="#0288d1" style="background-color: #0288d1;" title="天蓝">
+                        </div>
+                        <div class="color-preset" data-color="#5d4037" style="background-color: #5d4037;" title="棕色">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="color-custom">
+                    <div class="custom-title">自定义主色</div>
+                    <div class="custom-color-picker">
+                        <input type="color" id="customColorPicker" value="#0061a4">
+                        <mdui-text-field id="customColorHex" value="#0061a4" label="十六进制颜色"
+                            variant="outlined"></mdui-text-field>
+                    </div>
+                    <mdui-button id="applyCustomColor" variant="tonal" style="margin-top: 12px; width: 100%;">
+                        应用自定义颜色
+                    </mdui-button>
+                </div>
+
+                <div class="wallpaper-color">
+                    <div class="wallpaper-title">从壁纸提取颜色</div>
+                    <div class="wallpaper-upload">
+                        <input type="file" id="wallpaperFile" accept="image/*" style="display: none;">
+                        <mdui-button id="selectWallpaperBtn" variant="outlined" style="width: 100%;">
+                            <mdui-icon slot="icon">wallpaper</mdui-icon>
+                            选择壁纸图片
+                        </mdui-button>
+                    </div>
+                    <div id="extractedColorPreview" class="extracted-color-preview" style="display: none;">
+                        <div class="extracted-color-label">提取的颜色：</div>
+                        <div class="extracted-color-swatch"></div>
+                        <div class="extracted-color-value"></div>
+                        <mdui-button id="applyExtractedColor" variant="tonal" size="small">应用此颜色</mdui-button>
+                    </div>
+                </div>
+            </mdui-card>
+
+            <mdui-card variant="outlined" class="settings-card">
+                <div class="card-header">
+                    <mdui-icon>image</mdui-icon>
+                    <span>聊天背景</span>
+                </div>
+
+                <div class="bg-preview-container">
+                    <div id="chatBgPreview" class="chat-bg-preview">
+                        <div class="preview-message received">这是预览消息样式</div>
+                        <div class="preview-message sent">可以看到背景效果</div>
+                    </div>
+                </div>
+
+                <mdui-radio-group style="width: 100%;">
+                    <div class="bg-option">
+                        <mdui-radio name="bgType" value="default" checked>默认背景</mdui-radio>
+                    </div>
+                    <div class="bg-option">
+                        <mdui-radio name="bgType" value="color">纯色背景</mdui-radio>
+                        <div class="bg-color-input" style="display: none;">
+                            <input type="color" id="bgColorPicker" value="#f5f5f5">
+                            <mdui-text-field id="bgColorHex" value="#f5f5f5" variant="outlined"
+                                size="small"></mdui-text-field>
+                        </div>
+                    </div>
+                    <div class="bg-option">
+                        <mdui-radio name="bgType" value="image">图片背景</mdui-radio>
+                        <div class="bg-image-input" style="display: none;">
+                            <input type="file" id="bgImageFile" accept="image/*" style="display: none;">
+                            <div class="bg-image-controls">
+                                <mdui-button id="selectBgImageBtn" variant="outlined" size="small">选择图片</mdui-button>
+                                <mdui-button id="clearBgImage" variant="text" size="small" disabled>清除</mdui-button>
+                            </div>
+                            <div class="bg-image-options">
+                                <mdui-select id="bgImageFit" value="cover" variant="outlined" label="适应方式">
+                                    <mdui-menu-item value="cover">铺满（可能裁剪）</mdui-menu-item>
+                                    <mdui-menu-item value="contain">完整显示（留白）</mdui-menu-item>
+                                    <mdui-menu-item value="repeat">平铺重复</mdui-menu-item>
+                                </mdui-select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-option">
+                        <mdui-radio name="bgType" value="blur">模糊效果</mdui-radio>
+                        <div class="bg-blur-input" style="display: none;">
+                            <mdui-slider id="blurAmount" value="5" min="0" max="20" step="1"></mdui-slider>
+                            <span id="blurValue">5px</span>
+                        </div>
+                    </div>
+                </mdui-radio-group>
+
+                <div style="display: flex; gap: 8px; margin-top: 16px;">
+                    <mdui-button id="applyBgSettings" variant="tonal" style="flex: 1;">应用背景</mdui-button>
+                    <mdui-button id="resetBgSettings" variant="text" style="flex: 1;">重置</mdui-button>
+                </div>
+            </mdui-card>
+
+            <mdui-card variant="outlined" class="settings-card">
+                <div class="card-header">
+                    <mdui-icon>chat</mdui-icon>
+                    <span>本地消息管理</span>
+                </div>
+
+                <div class="storage-info">
+                    <div class="storage-item">
+                        <span>当前聊天室消息</span>
+                        <span id="currentRoomMessagesSize">计算中...</span>
+                    </div>
+                </div>
+
+                <mdui-list class="message-actions">
+                    <mdui-list-item id="clearCurrentRoomMessages" rounded>
+                        <mdui-icon slot="icon">delete_sweep</mdui-icon>
+                        <mdui-list-item-title>清空当前聊天室记录</mdui-list-item-title>
+                        <mdui-list-item-description>仅删除本地缓存的消息，不会影响服务器</mdui-list-item-description>
+                    </mdui-list-item>
+
+                    <mdui-list-item id="exportMessages" rounded>
+                        <mdui-icon slot="icon">download</mdui-icon>
+                        <mdui-list-item-title>导出聊天记录</mdui-list-item-title>
+                        <mdui-list-item-description>将当前聊天室消息导出为JSON文件</mdui-list-item-description>
+                    </mdui-list-item>
+                </mdui-list>
+            </mdui-card>
+
+            <mdui-card variant="outlined" class="settings-card" style="display: none;">
+                <div class="card-header">
+                    <mdui-icon>message</mdui-icon>
+                    <span>消息显示</span>
+                </div>
+
+                <div class="switch-item">
+                    <div class="switch-label">
+                        <div>显示消息时间</div>
+                        <div class="switch-desc">在每条消息旁边显示发送时间</div>
+                    </div>
+                    <mdui-switch id="showMessageTime" checked></mdui-switch>
+                </div>
+
+                <div class="switch-item">
+                    <div class="switch-label">
+                        <div>合并连续消息</div>
+                        <div class="switch-desc">将同一用户短时间内的连续消息合并显示</div>
+                    </div>
+                    <mdui-switch id="compactMessages" checked></mdui-switch>
+                </div>
+
+                <div class="slider-item">
+                    <div class="slider-label">
+                        <div>时间条间隔</div>
+                        <div class="slider-desc">消息列表中显示时间条的间隔时间</div>
+                    </div>
+                    <div class="slider-control">
+                        <mdui-slider id="timeBarGap" value="30" min="5" max="120" step="5"></mdui-slider>
+                        <span id="timeBarGapValue">30分钟</span>
+                    </div>
+                </div>
+
+                <div class="switch-item">
+                    <div class="switch-label">
+                        <div>自动加载更多</div>
+                        <div class="switch-desc">滚动到顶部时自动加载历史消息</div>
+                    </div>
+                    <mdui-switch id="autoLoadMore" checked></mdui-switch>
+                </div>
+
+                <div class="slider-item">
+                    <div class="slider-label">
+                        <div>历史消息加载数量</div>
+                        <div class="slider-desc">每次自动加载的消息条数</div>
+                    </div>
+                    <div class="slider-control">
+                        <mdui-slider id="loadLimit" value="50" min="10" max="100" step="10"></mdui-slider>
+                        <span id="loadLimitValue">50条</span>
+                    </div>
+                </div>
+            </mdui-card>
+
+            <mdui-card variant="outlined" class="settings-card" style="display: none;">
+                <div class="card-header">
+                    <mdui-icon>security</mdui-icon>
+                    <span>隐私与安全</span>
+                </div>
+
+                <div class="switch-item">
+                    <div class="switch-label">
+                        <div>消息预览</div>
+                        <div class="switch-desc">在通知栏显示消息内容</div>
+                    </div>
+                    <mdui-switch id="messagePreview" checked></mdui-switch>
+                </div>
+
+                <div class="switch-item">
+                    <div class="switch-label">
+                        <div>输入状态提示</div>
+                        <div class="switch-desc">显示对方正在输入的状态</div>
+                    </div>
+                    <mdui-switch id="typingIndicator" checked></mdui-switch>
+                </div>
+
+                <div class="switch-item">
+                    <div class="switch-label">
+                        <div>已读回执</div>
+                        <div class="switch-desc">发送已读状态给其他用户</div>
+                    </div>
+                    <mdui-switch id="readReceipt" checked></mdui-switch>
+                </div>
+            </mdui-card>
+
+            <mdui-card variant="outlined" class="settings-card about-card">
+                <div class="about-content">
+                    <mdui-icon style="font-size: 48px; color: rgb(var(--mdui-color-primary));">chat</mdui-icon>
+                    <div class="app-name">XQFChat</div>
+                    <div class="app-version">
+                        <div class="version-chip">
+                            <mdui-chip>
+                                <mdui-icon slot="icon">code</mdui-icon>
+                                WEB v0.0.0.2
+                            </mdui-chip>
+                            <mdui-chip>
+                                <mdui-icon slot="icon">storage</mdui-icon>
+                                Backend v0.0.0.6
+                            </mdui-chip>
+                        </div>
+                    </div>
+                    <div class="app-description">
+                        一个开源的聊天应用，基于 MDUI 3 构建。
+                    </div>
+                    <div class="app-links">
+                        <a href="https://gitee.com/XiaoFengQWQ/xqfchat" target="_blank">Gitee</a>
+                        <span>·</span>
+                        <a href="https://blog.xiaofengqwq.com" target="_blank">作者博客</a>
+                        <span>·</span>
+                        <a href="#" id="openSourceLicense">开源协议</a>
+                    </div>
+                    <div class="copyright">
+                        © 2026 XQFChat. GNU GPL License.
+                    </div>
+                </div>
+            </mdui-card>
+        </div>
+    </mdui-layout>
+
+    <mdui-dialog close-on-overlay-click headline="确认清空" id="confirmClearDialog">
+        <div id="confirmClearMessage">确定要清空所有聊天记录吗？此操作不可恢复。</div>
+        <div slot="action">
+            <mdui-button variant="text" id="cancelClear">取消</mdui-button>
+            <mdui-button variant="tonal" id="confirmClear">确定清空</mdui-button>
+        </div>
+    </mdui-dialog>
+
+    <mdui-dialog close-on-overlay-click headline="GNU General Public License v3.0" id="licenseDialog">
+        <div style="max-height: 400px; overflow-y: auto; padding: 8px; font-size: 13px; line-height: 1.6;">
+            <p>This program is free software: you can redistribute it and/or modify it under the terms of the GNU
+                General Public License as published by the Free Software Foundation, either version 3 of the License, or
+                (at your option) any later version.</p>
+            <p>This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+                the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public
+                License for more details.</p>
+            <p>You should have received a copy of the GNU General Public License along with this program. If not, see <a
+                    href="https://www.gnu.org/licenses/" target="_blank">https://www.gnu.org/licenses/</a>.</p>
+        </div>
+        <div slot="action">
+            <mdui-button variant="tonal" id="closeLicenseDialog">我知道了</mdui-button>
+        </div>
+    </mdui-dialog>
+
+    <div id="loading" class="mdui-circular-progress-overlay" style="display: none;">
+        <mdui-circular-progress></mdui-circular-progress>
+    </div>
+</body>
+
+</html>

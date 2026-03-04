@@ -1,0 +1,329 @@
+@import url(./common.css);
+
+/* 消息内容容器 */
+.message-content-container {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+}
+
+/* 用户昵称样式 */
+.message-nickname {
+    font-size: 12px;
+    color: rgb(var(--mdui-color-on-surface-variant));
+    margin-bottom: 4px;
+    font-weight: 500;
+    padding-left: 4px;
+    word-break: break-all;
+}
+
+.message-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    max-width: 85%;
+    margin-top: 8px;
+    transition: background-color 0.5s;
+}
+
+.message-row.compact {
+    margin-top: 2px;
+}
+
+/* 紧凑模式下不显示昵称 */
+.message-row.compact .message-nickname {
+    display: none;
+}
+
+.avatar-spacer {
+    width: 40px;
+    flex-shrink: 0;
+}
+
+.message-bubble {
+    padding: 8px 14px;
+    font-size: 15px;
+    line-height: 1.5;
+    word-wrap: break-word;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05);
+}
+
+/* 引用内容样式 - 增加点击手势 */
+.quote-content {
+    font-size: 12px;
+    background: rgba(0, 0, 0, 0.08);
+    padding: 6px 8px;
+    border-left: 3px solid rgb(var(--mdui-color-primary));
+    border-radius: 4px;
+    margin-bottom: 6px;
+    opacity: 0.8;
+    cursor: pointer;
+    /* 提示可点击 */
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.sent .quote-content {
+    background: rgba(255, 255, 255, 0.2);
+    border-left-color: white;
+}
+
+/* 目标消息高亮动画 */
+@keyframes highlight-flash {
+    0% {
+        background-color: transparent;
+    }
+
+    30% {
+        background-color: rgb(var(--mdui-color-primary-container));
+    }
+
+    100% {
+        background-color: transparent;
+    }
+}
+
+.msg-highlight {
+    animation: highlight-flash 1.5s ease-out;
+    border-radius: 8px;
+}
+
+.message-row.received {
+    align-self: flex-start;
+}
+
+.message-row.received .message-bubble {
+    background-color: rgb(var(--mdui-color-surface-container-high));
+    color: rgb(var(--mdui-color-on-surface));
+    border-radius: 18px 18px 18px 4px;
+}
+
+/* 接收方连续消息：左上角变方，左下角变圆 */
+.message-row.received.compact .message-bubble {
+    border-top-left-radius: 4px;
+    border-bottom-left-radius: 18px;
+}
+
+.message-row.received .message-nickname {
+    color: rgb(var(--mdui-color-on-surface-variant));
+}
+
+/* --- 发送消息样式 (右侧) --- */
+.message-row.sent {
+    align-self: flex-end;
+    flex-direction: row-reverse;
+}
+
+.message-row.sent .message-nickname {
+    text-align: right;
+    padding-right: 4px;
+    padding-left: 0;
+    color: rgb(var(--mdui-color-on-primary-container));
+}
+
+.message-row.sent .message-bubble {
+    background-color: rgb(var(--mdui-color-primary-container));
+    border-radius: 18px 18px 4px 18px;
+}
+
+/* 发送方连续消息：右上角变方，右下角变圆 */
+.message-row.sent.compact .message-bubble {
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 18px;
+}
+
+#replyPreview {
+    display: none;
+    align-items: center;
+    padding: 8px 16px;
+    background: rgb(var(--mdui-color-surface-container-high));
+    border-bottom: 1px solid rgb(var(--mdui-color-outline-variant));
+}
+
+.reply-text-container {
+    flex: 1;
+    overflow: hidden;
+}
+
+.reply-title {
+    font-size: 11px;
+    color: rgb(var(--mdui-color-primary));
+    font-weight: bold;
+}
+
+.reply-body {
+    font-size: 13px;
+    color: rgb(var(--mdui-color-on-surface-variant));
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.input-area {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+}
+
+mdui-text-field {
+    flex: 1;
+}
+
+/* 时间条样式 */
+.time-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 16px 0;
+    position: relative;
+}
+
+.time-bar-text {
+    margin: 0 12px;
+    padding: 4px 12px;
+    background-color: rgb(var(--mdui-color-surface-container-highest));
+    border-radius: 12px;
+    font-size: 12px;
+    color: rgb(var(--mdui-color-on-surface-variant));
+    white-space: nowrap;
+    align-items: center;
+}
+
+.time-bar-date {
+    font-weight: 500;
+}
+
+.time-bar-time {
+    opacity: 0.8;
+}
+
+/* 事件消息样式 */
+.event-message {
+    text-align: center;
+    margin: 8px 0;
+    padding: 4px 0;
+}
+
+.event-content {
+    display: inline-block;
+    background: rgba(var(--mdui-color-primary), 0.1);
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    color: rgb(var(--mdui-color-on-surface-variant));
+}
+
+.event-time {
+    margin-right: 6px;
+    opacity: 0.7;
+}
+
+.event-user {
+    font-weight: bold;
+    margin-right: 4px;
+}
+
+/* 已删除消息样式 */
+.deleted-message {
+    font-style: italic;
+    opacity: 0.7;
+}
+
+/* 表情图标样式 */
+.face-icon {
+    display: inline-block;
+    padding: 2px 4px;
+    background: rgba(var(--mdui-color-primary), 0.1);
+    border-radius: 4px;
+    margin: 0 2px;
+    font-size: 12px;
+}
+
+/* Markdown内容样式 */
+.markdown-content {
+    line-height: 1.6;
+}
+
+.markdown-content strong {
+    font-weight: bold;
+    color: inherit;
+}
+
+.markdown-content em {
+    font-style: italic;
+}
+
+.markdown-content ul {
+    margin: 4px 0;
+    padding-left: 20px;
+}
+
+.markdown-content li {
+    margin: 2px 0;
+}
+
+/* 文件卡片样式 */
+.file-card {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    background: rgb(var(--mdui-color-surface-container-highest));
+    border-radius: 8px;
+    gap: 12px;
+    max-width: 300px;
+}
+
+.file-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: rgb(var(--mdui-color-primary-container));
+    border-radius: 8px;
+    color: rgb(var(--mdui-color-on-primary-container));
+}
+
+.file-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.file-name {
+    font-weight: 500;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.file-meta {
+    display: flex;
+    gap: 8px;
+    font-size: 12px;
+    color: rgb(var(--mdui-color-on-surface-variant));
+}
+
+.download-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: rgb(var(--mdui-color-primary));
+    color: rgb(var(--mdui-color-on-primary));
+    border-radius: 50%;
+    text-decoration: none;
+}
+
+/* 暗色主题适配 */
+.mdui-theme-dark .time-bar-text {
+    background-color: rgb(var(--mdui-color-surface-container-low));
+}
+
+.mdui-theme-dark .file-card {
+    background: rgb(var(--mdui-color-surface-container-low));
+}

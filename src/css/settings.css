@@ -1,0 +1,439 @@
+@import url(./common.css);
+
+mdui-layout {
+    overflow: scroll;
+}
+
+.settings-container {
+    padding: 16px;
+    padding-bottom: 80px;
+}
+
+.settings-card {
+    padding: 16px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+    font-size: 16px;
+    font-weight: 600;
+    color: rgb(var(--mdui-color-on-surface));
+}
+
+.card-header mdui-icon {
+    font-size: 24px;
+    color: rgb(var(--mdui-color-primary));
+}
+
+/* 预设配色样式 */
+.color-presets {
+    margin-bottom: 20px;
+}
+
+.preset-title,
+.custom-title,
+.wallpaper-title {
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 12px;
+    color: rgb(var(--mdui-color-on-surface-variant));
+}
+
+.preset-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+
+.color-preset {
+    aspect-ratio: 1/1;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    border: 2px solid transparent;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.color-preset.active {
+    border-color: rgb(var(--mdui-color-on-surface));
+    box-shadow: 0 0 0 2px rgb(var(--mdui-color-primary-container));
+}
+
+/* 自定义颜色 */
+.custom-color-picker {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.custom-color-picker input[type="color"] {
+    width: 60px;
+    height: 60px;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    background: transparent;
+    flex-shrink: 0;
+}
+
+.custom-color-picker input[type="color"]::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+
+.custom-color-picker input[type="color"]::-webkit-color-swatch {
+    border: 2px solid rgb(var(--mdui-color-outline));
+    border-radius: 12px;
+}
+
+/* 壁纸提取颜色 */
+.wallpaper-upload {
+    margin-bottom: 16px;
+}
+
+.extracted-color-preview {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: rgb(var(--mdui-color-surface-container));
+    border-radius: 12px;
+    margin-top: 12px;
+}
+
+.extracted-color-label {
+    font-size: 13px;
+    color: rgb(var(--mdui-color-on-surface-variant));
+}
+
+.extracted-color-swatch {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    border: 2px solid rgb(var(--mdui-color-outline));
+}
+
+.extracted-color-value {
+    font-family: monospace;
+    font-size: 13px;
+    flex: 1;
+}
+
+/* 聊天背景预览 */
+.bg-preview-container {
+    margin-bottom: 20px;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.chat-bg-preview {
+    height: 160px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background-color: #f5f5f5;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    transition: background-image 0.3s, background-color 0.3s;
+}
+
+.mdui-theme-dark .chat-bg-preview {
+    background-color: #1e1e1e;
+}
+
+.preview-message {
+    max-width: 70%;
+    padding: 8px 12px;
+    border-radius: 18px;
+    font-size: 13px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.preview-message.received {
+    align-self: flex-start;
+    background-color: rgb(var(--mdui-color-surface-container-high));
+    color: rgb(var(--mdui-color-on-surface));
+    border-bottom-left-radius: 4px;
+}
+
+.preview-message.sent {
+    align-self: flex-end;
+    background-color: rgb(var(--mdui-color-primary-container));
+    color: rgb(var(--mdui-color-on-primary-container));
+    border-bottom-right-radius: 4px;
+}
+
+/* 背景选项 */
+.bg-options {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.bg-option {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.bg-color-input {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-left: 28px;
+}
+
+.bg-color-input input[type="color"] {
+    width: 50px;
+    height: 50px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    background: transparent;
+}
+
+.bg-color-input input[type="color"]::-webkit-color-swatch {
+    border: 2px solid rgb(var(--mdui-color-outline));
+    border-radius: 8px;
+}
+
+.bg-image-input {
+    margin-left: 28px;
+}
+
+.bg-image-controls {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.bg-image-options {
+    margin-top: 8px;
+}
+
+.bg-blur-input {
+    margin-left: 28px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.bg-blur-input mdui-slider {
+    flex: 1;
+}
+
+#blurValue {
+    min-width: 40px;
+    font-size: 13px;
+    color: rgb(var(--mdui-color-on-surface-variant));
+}
+
+/* 存储信息 */
+.storage-info {
+    background: rgb(var(--mdui-color-surface-container));
+    padding: 16px;
+    border-radius: 12px;
+    margin-bottom: 16px;
+}
+
+.storage-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    font-size: 14px;
+}
+
+.storage-item:not(:last-child) {
+    border-bottom: 1px solid rgb(var(--mdui-color-outline-variant));
+}
+
+.storage-item span:first-child {
+    color: rgb(var(--mdui-color-on-surface-variant));
+}
+
+.storage-item span:last-child {
+    font-weight: 500;
+    color: rgb(var(--mdui-color-on-surface));
+}
+
+/* 消息动作列表 */
+.message-actions {
+    padding: 0;
+}
+
+.message-actions mdui-list-item {
+    margin-bottom: 4px;
+}
+
+.message-actions mdui-list-item-description {
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+/* 开关项样式 */
+.switch-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid rgb(var(--mdui-color-outline-variant));
+}
+
+.switch-item:last-child {
+    border-bottom: none;
+}
+
+.switch-label {
+    flex: 1;
+}
+
+.switch-label>div:first-child {
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+.switch-desc {
+    font-size: 12px;
+    color: rgb(var(--mdui-color-on-surface-variant));
+}
+
+/* 滑块项样式 */
+.slider-item {
+    padding: 12px 0;
+    border-bottom: 1px solid rgb(var(--mdui-color-outline-variant));
+}
+
+.slider-item:last-child {
+    border-bottom: none;
+}
+
+.slider-label {
+    margin-bottom: 12px;
+}
+
+.slider-label>div:first-child {
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+.slider-desc {
+    font-size: 12px;
+    color: rgb(var(--mdui-color-on-surface-variant));
+}
+
+.slider-control {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.slider-control mdui-slider {
+    flex: 1;
+}
+
+.slider-control span {
+    min-width: 50px;
+    font-size: 13px;
+    color: rgb(var(--mdui-color-on-surface-variant));
+}
+
+/* 关于卡片 */
+.about-card {
+    text-align: center;
+}
+
+.about-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px 0;
+}
+
+.app-name {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 8px 0 4px;
+}
+
+.app-version {
+    font-size: 13px;
+    color: rgb(var(--mdui-color-on-surface-variant));
+    margin-bottom: 12px;
+}
+
+.version-chip {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin: 12px 0;
+}
+
+.app-description {
+    font-size: 14px;
+    color: rgb(var(--mdui-color-on-surface));
+    margin: 12px 0;
+    max-width: 280px;
+}
+
+.app-links {
+    display: flex;
+    gap: 8px;
+    font-size: 13px;
+    margin: 8px 0;
+}
+
+.app-links a {
+    color: rgb(var(--mdui-color-primary));
+    text-decoration: none;
+}
+
+.app-links a:hover {
+    text-decoration: underline;
+}
+
+.copyright {
+    font-size: 11px;
+    color: rgb(var(--mdui-color-on-surface-variant));
+    margin-top: 8px;
+}
+
+/* 暗色主题适配 */
+.mdui-theme-dark .chat-bg-preview {
+    background-color: #1e1e1e;
+}
+
+.mdui-theme-dark .color-preset {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* 移动端适配 */
+@media (max-width: 400px) {
+    .settings-container {
+        padding: 12px;
+    }
+
+    .preset-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+    }
+
+    .custom-color-picker {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .custom-color-picker input[type="color"] {
+        width: 100%;
+        height: 50px;
+    }
+}

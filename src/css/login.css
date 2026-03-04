@@ -1,0 +1,98 @@
+@import url(./common.css);
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.g-recaptcha {
+    transform: scale(0.77);
+    -webkit-transform: scale(0.92);
+    transform-origin: 0 0;
+    -webkit-transform-origin: 0 0;
+}
+
+.login-container {
+    width: 100%;
+    max-width: 360px;
+    padding: 24px;
+    box-sizing: border-box;
+}
+
+.login-header {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.login-header .logo {
+    margin-bottom: 8px;
+}
+
+.login-header .title {
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.login-header .subtitle {
+    font-size: 13px;
+    opacity: .7;
+    margin-top: 4px;
+}
+
+.login-card {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.login-footer {
+    margin-top: 32px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(var(--mdui-color-outline-variant), 0.3);
+}
+
+.footer-content {
+    text-align: center;
+    font-size: 12px;
+    color: rgba(var(--mdui-color-on-surface), 0.6);
+}
+
+.footer-links {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+
+.footer-link {
+    color: rgba(var(--mdui-color-primary), 0.8);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.footer-link:hover {
+    color: rgb(var(--mdui-color-primary));
+    text-decoration: underline;
+}
+
+.divider {
+    color: rgba(var(--mdui-color-outline-variant), 0.5);
+}
+
+.copyright {
+    font-size: 11px;
+    opacity: 0.7;
+}
+
+mdui-fab {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    margin: 20px;
+}

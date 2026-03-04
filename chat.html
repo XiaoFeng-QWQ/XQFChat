@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>加载中…… - XQFChat</title>
+    <link rel="shortcut icon" href="./unpackage/res/icons/192x192.png" type="image/x-icon">
+    <link rel="stylesheet" href="./src/css/chat.css">
+    <script src="./src/js/lib/mdui.global.min.js"></script>
+    <script src="./src/js/lib/marked.umd.min.js"></script>
+    <script type="module" src="./src/js/chat.js"></script>
+</head>
+
+<body>
+    <mdui-layout>
+        <mdui-navigation-drawer placement="right" id="navigationDrawer" modal close-on-esc close-on-overlay-click
+            contained>
+            <div style="padding: 12px;">
+                <mdui-card variant="outlined" style="width: 100%;">
+                    <div style="padding: 16px;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <mdui-avatar id="roomAvatar"></mdui-avatar>
+                            <div>
+                                <div id="roomName" style="font-size: 18px; font-weight: 600;">
+                                    -
+                                </div>
+                                <div id="roomDesc" style="font-size: 13px; opacity: 0.7;">
+                                    -
+                                </div>
+                            </div>
+                        </div>
+                        <mdui-divider style="margin: 12px 0;"></mdui-divider>
+                        <div
+                            style="display: grid;grid-template-columns: repeat(2, 1fr);row-gap: 8px;column-gap: 12px;font-size: 14px;">
+                            <div>
+                                <mdui-icon style="font-size: 18px; vertical-align: middle;">tag</mdui-icon>
+                                房间 ID：
+                                <span id="roomId">-</span>
+                            </div>
+
+                            <div>
+                                <mdui-icon style="font-size: 18px; vertical-align: middle;">groups</mdui-icon>
+                                在线：
+                                <span id="roomOnlineCount">-</span>
+                            </div>
+
+                            <div style="grid-column: 1 / -1;">
+                                <mdui-icon style="font-size: 18px; vertical-align: middle;">schedule</mdui-icon>
+                                创建时间：
+                                <span id="roomCreateTime">-</span>
+                            </div>
+                        </div>
+
+                    </div>
+                </mdui-card>
+            </div>
+
+            <mdui-divider></mdui-divider>
+            <mdui-list>
+                <mdui-list-subheader>成员列表</mdui-list-subheader>
+                <div id="roomMemberList"></div>
+            </mdui-list>
+
+            <mdui-list>
+                <mdui-list-subheader>房间管理</mdui-list-subheader>
+                <mdui-list-item id="updateRoomBtn" rounded style="display: none;">
+                    <mdui-icon slot="icon">edit</mdui-icon>
+                    <mdui-list-item-title>更新聊天室信息</mdui-list-item-title>
+                </mdui-list-item>
+            </mdui-list>
+
+            <mdui-divider></mdui-divider>
+
+            <mdui-list>
+                <mdui-list-subheader>其他功能</mdui-list-subheader>
+
+                <mdui-list-item id="toggleMute" rounded>
+                    <mdui-icon slot="icon">volume_off</mdui-icon>
+                    <mdui-list-item-title>消息免打扰</mdui-list-item-title>
+                </mdui-list-item>
+
+                <mdui-list-item id="clearHistory" rounded>
+                    <mdui-icon slot="icon">delete</mdui-icon>
+                    <mdui-list-item-title>清空本地聊天记录</mdui-list-item-title>
+                </mdui-list-item>
+
+                <mdui-list-item id="leaveRoom" rounded>
+                    <mdui-icon slot="icon">logout</mdui-icon>
+                    <mdui-list-item-title>退出当前聊天室</mdui-list-item-title>
+                </mdui-list-item>
+            </mdui-list>
+
+        </mdui-navigation-drawer>
+
+        <mdui-top-app-bar variant="center-aligned" scroll-behavior="elevate" scroll-target="#messageList">
+            <mdui-button-icon icon="arrow_back" onclick="window.location.href = 'index.html'"></mdui-button-icon>
+            <mdui-top-app-bar-title id="title">加载中……</mdui-top-app-bar-title>
+            <div style="flex-grow: 1"></div>
+            <mdui-button-icon id="navigationDrawertoggle" icon="menu"></mdui-button-icon>
+        </mdui-top-app-bar>
+
+        <main class="list" id="messageList"></main>
+
+        <footer class="footer-container">
+            <div id="replyPreview">
+                <div class="reply-text-container">
+                    <div class="reply-title" id="replyTitle">回复给：对方</div>
+                    <div class="reply-body" id="replyBody">消息内容...</div>
+                </div>
+                <mdui-button-icon id="cancelReply" icon="close"></mdui-button-icon>
+            </div>
+            <div class="input-area">
+                <mdui-button-icon icon="add"></mdui-button-icon>
+                <mdui-text-field id="chatInput" variant="outlined" placeholder="发送消息..." autosize></mdui-text-field>
+                <mdui-button-icon id="sendBtn" icon="send" variant="filled"></mdui-button-icon>
+            </div>
+        </footer>
+    </mdui-layout>
+
+    <mdui-menu id="msgMenu">
+        <mdui-menu-item icon="content_copy" data-action="message.copy">复制文字</mdui-menu-item>
+        <mdui-menu-item icon="reply" data-action="message.reply">回复</mdui-menu-item>
+        <mdui-menu-item icon="undo" data-action="message.delect">撤回消息</mdui-menu-item>
+    </mdui-menu>
+
+    <div class="mdui-circular-progress-overlay" id="roomInfoProgress">
+        <mdui-circular-progress></mdui-circular-progress>
+    </div>
+
+    <mdui-dialog close-on-overlay-click id="userInfoDialog">
+        <div class="mdui-circular-progress-overlay" id="userInfoLoading">
+            <mdui-circular-progress></mdui-circular-progress>
+        </div>
+        <div id="userInfoContent">
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <mdui-avatar id="userInfoAvatar" size="56"></mdui-avatar>
+                <div>
+                    <div id="userInfoNickname" style="font-size: 18px; font-weight: 600;"></div>
+                    <div id="userInfoBio" style="font-size: 13px; opacity: .7;"></div>
+                </div>
+            </div>
+
+            <mdui-divider style="margin: 12px 0;"></mdui-divider>
+
+            <div style="font-size: 14px;">
+                <div>用户 ID：<span id="userInfoId"></span></div>
+                <div>注册时间：<span id="userInfoCreatedAt"></span></div>
+                <div>最后活跃：<span id="userInfoLastActive"></span></div>
+            </div>
+        </div>
+    </mdui-dialog>
+    <mdui-dialog close-on-overlay-click headline="更新聊天室信息" id="roomUpdateDialog" close-on-esc>
+        <div class="mdui-circular-progress-overlay" id="roomUpdateLoading">
+            <mdui-circular-progress></mdui-circular-progress>
+        </div>
+        <div id="roomUpdateContent">
+            <form id="roomUpdateForm">
+                <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+                    <mdui-avatar id="roomUpdateAvatarPreview" style="width: 64px; height: 64px;"></mdui-avatar>
+                    <div style="flex: 1;">
+                        <input type="file" id="roomUpdateAvatarFile" accept="image/jpeg,image/png,image/gif,image/webp"
+                            style="display: none;" />
+                        <mdui-button variant="outlined" id="roomUpdateAvatarBtn" style="width: 100%;">
+                            <mdui-icon slot="icon">image</mdui-icon>
+                            更换头像
+                        </mdui-button>
+                        <div style="font-size: 12px; opacity: 0.7; margin-top: 4px;">
+                            支持 JPG、PNG、GIF、WEBP，最大 2MB
+                        </div>
+                    </div>
+                </div>
+
+                <mdui-text-field id="roomUpdateName" label="聊天室名称" variant="outlined" required
+                    style="width: 100%; margin-bottom: 16px;"></mdui-text-field>
+
+                <mdui-text-field id="roomUpdateDesc" label="聊天室描述" variant="outlined" rows="3" multiline
+                    style="width: 100%; margin-bottom: 16px;"></mdui-text-field>
+
+                <mdui-text-field id="roomUpdateMaxUsers" label="最大人数" type="number" variant="outlined"
+                    style="width: 100%; margin-bottom: 16px;"></mdui-text-field>
+            </form>
+        </div>
+        <div slot="action">
+            <mdui-button variant="text" id="roomUpdateCancel">取消</mdui-button>
+            <mdui-button variant="tonal" id="roomUpdateSubmit">保存</mdui-button>
+        </div>
+    </mdui-dialog>
+    <mdui-dialog close-on-overlay-click headline="真的要退出当前聊天室吗？" id="confirmLeaveRoomDialog">
+        <mdui-button slot="action" variant="text" id="cancelConfirmLeaveRoom">取消</mdui-button>
+        <mdui-button slot="action" variant="tonal" id="confirmLeaveRoom">确定</mdui-button>
+    </mdui-dialog>
+    <mdui-fab id="theme-toggle" icon="dark_mode" style="display: none;"></mdui-fab>
+
+</body>
+
+</html>

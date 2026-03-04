@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="mdui-theme-light">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>XQFChat</title>
+    <link rel="stylesheet" href="./src/css/index.css">
+    <link rel="shortcut icon" href="./unpackage/res/icons/192x192.png" type="image/x-icon">
+    <script src="./src/js/lib/mdui.global.min.js"></script>
+    <script type="module" src="./src/js/index.js"></script>
+</head>
+
+<body>
+    <mdui-layout>
+        <div class="page-container">
+
+            <div class="page active" id="page-rooms">
+                <mdui-list>
+                    <mdui-list-item><mdui-text-field id="globalSearchInput" placeholder="搜索聊天室..." variant="outlined"
+                            clearable icon="search"></mdui-text-field></mdui-list-item>
+                </mdui-list>
+                <div class="list" id="roomList"></div>
+                <div class="list" id="globalSearchResults"></div>
+            </div>
+            <form class="page" id="page-create">
+                <mdui-text-field name="name" label="聊天室名称" variant="outlined"
+                    style="width: 100%; margin-bottom: 16px;"></mdui-text-field>
+                <mdui-text-field name="description" label="聊天室描述" variant="outlined" rows="3"
+                    style="width: 100%; margin-bottom: 16px;"></mdui-text-field>
+
+                <!-- 头像上传区域 -->
+                <div style="margin-bottom: 24px;">
+                    <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 8px;">
+                        <mdui-avatar id="avatar-preview" style="width: 64px; height: 64px;"></mdui-avatar>
+                        <div style="flex: 1;">
+                            <input type="file" id="avatar-file" accept="image/jpeg,image/png,image/gif,image/webp"
+                                style="display: none;" />
+                            <mdui-button variant="outlined" id="select-avatar-btn" style="width: 100%;">
+                                <mdui-icon slot="icon">image</mdui-icon>
+                                选择头像
+                            </mdui-button>
+                            <div style="font-size: 12px; color: #666; margin-top: 4px;">
+                                支持 JPG、PNG、GIF、WEBP，最大 2MB
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <mdui-button variant="tonal" style="width: 100%;" id="createRoomBtn">
+                    <mdui-icon slot="icon">add</mdui-icon>
+                    创建聊天室
+                </mdui-button>
+            </form>
+
+            <div class="page" id="page-me">
+                <mdui-card style="margin: 16px;" variant="noen">
+                    <div class="me-header">
+                        <mdui-avatar id="meAvatar" style="width:64px;height:64px;"></mdui-avatar>
+                        <div class="me-info">
+                            <div class="me-nickname" id="meNickname">加载中...</div>
+                            <div class="me-email" id="meEmail"></div>
+                        </div>
+                    </div>
+                </mdui-card>
+                <mdui-divider></mdui-divider>
+                <mdui-list>
+                    <mdui-list-item id="theme-toggle" icon="dark_mode" rounded>更改配色</mdui-list-item>
+                    <mdui-list-item icon="open_in_new" href="https://user.flmp.uk/" rounded>管理我的账户</mdui-list-item>
+                    <mdui-list-item icon="settings" href="settings.html" rounded>设置</mdui-list-item>
+                    <mdui-divider></mdui-divider>
+                    <mdui-list-item icon="logout" id="logoutBtn" rounded>退出登录</mdui-list-item>
+                </mdui-list>
+            </div>
+
+        </div>
+
+        <mdui-navigation-bar id="bottomNav" value="item-1" class="footer-container">
+            <mdui-navigation-bar-item icon="list" value="rooms">
+                列表
+            </mdui-navigation-bar-item>
+            <mdui-navigation-bar-item icon="add" value="create">
+                创建
+            </mdui-navigation-bar-item>
+            <mdui-navigation-bar-item icon="person" value="me">
+                我
+            </mdui-navigation-bar-item>
+        </mdui-navigation-bar>
+        <div id="loading" class="mdui-circular-progress-overlay">
+            <mdui-circular-progress></mdui-circular-progress>
+        </div>
+    </mdui-layout>
+
+    <mdui-dialog close-on-overlay-click headline="真的要退出登录吗？" id="confirmLogoutDialog">
+        <mdui-button slot="action" variant="text" id="cancelConfirmLogout">取消</mdui-button>
+        <mdui-button slot="action" variant="tonal" id="confirmLogout">确定</mdui-button>
+    </mdui-dialog>
+</body>
+
+</html>
