@@ -1,6 +1,6 @@
 "use strict";
 
-import { CORE_CONFIG, USER_LOGIN_TOKEN } from "../core.js";
+import { CORE_CONFIG, USER_LOGIN_TOKEN, $ } from "../core.js";
 
 let openWindow = null;
 
@@ -630,4 +630,88 @@ const getFormData = (form) =>
         return data;
     }, {});
 
-export { HttpUtil, StorageUtil, formatTime, getFormData, IndexedDBUtil }
+/**
+ * 格式化字节大小
+ * @param {number} bytes 字节数
+ * @param {number} decimals 小数位数
+ * @returns {string}
+ */
+const formatBytes = (bytes, decimals = 2) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+};
+
+/**
+ * 页面加载进度管理器
+ * 使用 MDUI 的线性进度条组件显示页面加载状态
+ * 通过调用 start() 和 stop() 方法控制进度条的显示和隐藏
+ */
+const progressManager = {
+    $progress: null,
+    hideTimer: null,
+
+    init() {
+        if (!$('#pageTransitionProgress').length) {
+            const progressHTML = `
+<mdui-linear-progress 
+    id="pageTransitionProgress"
+    style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 10000;
+        opacity: 0;
+        display: none;
+        transition: opacity 0.3s ease;
+    ">
+</mdui-linear-progress>`;
+            $('body').append(progressHTML);
+            this.$progress = $('#pageTransitionProgress');
+        } else {
+            this.$progress = $('#pageTransitionProgress');
+        }
+    },
+
+    start() {
+        if (this.$progress && this.$progress.length) {
+            // 取消隐藏定时器
+            if (this.hideTimer) {
+                clearTimeout(this.hideTimer);
+                this.hideTimer = null;
+            }
+
+            // 立刻显示（无动画）
+            this.$progress.css({
+                display: 'block',
+                opacity: 1
+            });
+
+            this.$progress.prop('indeterminate', true);
+        }
+    },
+
+    stop() {
+        if (this.$progress && this.$progress.length) {
+            this.$progress.prop('indeterminate', false);
+
+            // 延迟 0.5 秒再开始淡出
+            this.hideTimer = setTimeout(() => {
+                this.$progress.css('opacity', 0);
+
+                // 等待过渡动画结束再 display:none
+                setTimeout(() => {
+                    this.$progress.css('display', 'none');
+                }, 300); // 要和 transition 时间一致
+
+                this.hideTimer = null;
+            }, 500);
+        }
+    }
+};
+
+export { HttpUtil, StorageUtil, formatTime, getFormData, IndexedDBUtil, formatBytes, progressManager };

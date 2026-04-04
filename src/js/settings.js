@@ -1,13 +1,16 @@
 "use strict";
 
-import { $ } from './core.js';
-import { StorageUtil, IndexedDBUtil } from './lib/util.js';
+import { CORE_CONFIG, USER_LOGIN_TOKEN, $ } from './core.js';
+import { StorageUtil, IndexedDBUtil, progressManager } from './lib/util.js';
 
 // 从 mdui 全局对象中获取函数
 const { setColorScheme, getColorFromImage } = mdui;
 
 // DOM 元素引用
 const elements = {
+    // 返回按钮（仅在手机端 iframe 中出现）
+    settingsBack: $('#settings-back'),
+
     // 预设配色
     colorPresets: $('.color-preset'),
     customColorPicker: $('#customColorPicker'),
@@ -100,10 +103,24 @@ const state = {
     currentBgType: 'default' // 新增：当前选中的背景类型
 };
 
+let isSettingsInitialized = false;
+
 /**
  * 初始化页面
  */
 const init = async () => {
+    // 检查登录状态：如果没有令牌，重定向到登录页面
+    if (!USER_LOGIN_TOKEN) {
+        window.location.href = 'login.html';
+        return;
+    }
+
+    // 如果已经初始化过，直接返回，避免重复初始化
+    if (isSettingsInitialized) {
+        console.debug('Settings already initialized');
+        return;
+    }
+
     // 获取当前房间ID（如果存在）
     const urlParams = new URLSearchParams(window.location.search);
     state.currentRoomId = urlParams.get('room_id');
@@ -116,6 +133,16 @@ const init = async () => {
 
     // 计算存储使用情况
     await calculateStorageUsage();
+
+    // 标记已初始化
+    isSettingsInitialized = true;
+
+    // 通知父窗口设置页面已准备就绪
+    if (window.parent && window.parent !== window) {
+        window.parent.postMessage({
+            type: 'settingsReady'
+        }, '*');
+    }
 };
 
 /**
@@ -446,7 +473,7 @@ const bindEvents = () => {
         const file = e.target.files[0];
         if (!file) return;
 
-        elements.loading.show();
+        progressManager.start();
 
         try {
             const image = new Image();
@@ -470,7 +497,7 @@ const bindEvents = () => {
             console.error('提取颜色失败:', error);
             mdui.snackbar({ message: '提取颜色失败，请重试' });
         } finally {
-            elements.loading.hide();
+            progressManager.stop();
         }
     });
 
@@ -618,6 +645,14 @@ const bindEvents = () => {
     elements.loadLimit.on('input', (e) => {
         const val = e.target.value;
         elements.loadLimitValue.text(`${val}条`);
+    });
+
+    // 返回按钮（仅在手机端 iframe 中出现）
+    elements.settingsBack.on('click', () => {
+        // 发送消息给父窗口，通知返回
+        window.parent.postMessage({
+            type: 'settingsBack'
+        }, '*');
     });
 
     // 本地消息管理（使用 IndexedDB）

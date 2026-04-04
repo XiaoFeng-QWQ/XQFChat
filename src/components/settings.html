@@ -1,24 +1,23 @@
 <!DOCTYPE html>
-<html lang="zh-CN" class="mdui-theme-light">
+<html lang="zh-CN" class="mdui-theme-auto">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>设置 - XQFChat</title>
-    <link rel="stylesheet" href="./src/css/settings.css">
-    <link rel="shortcut icon" href="./unpackage/res/icons/192x192.png" type="image/x-icon">
-    <script src="./src/js/lib/mdui.global.min.js"></script>
-    <script type="module" src="./src/js/settings.js"></script>
+    <link rel="stylesheet" href="./../../src/css/settings.css">
+    <link rel="shortcut icon" href="./../../unpackage/res/icons/192x192.png" type="image/x-icon">
+    <script src="./../../src/js/lib/mdui.global.min.js"></script>
+    <script type="module" src="./../../src/js/settings.js"></script>
 </head>
 
 <body>
-    <mdui-top-app-bar variant="center-aligned">
-        <mdui-button-icon icon="arrow_back" onclick="window.location.href = 'index.html'"></mdui-button-icon>
+    <mdui-top-app-bar id="settingsTopBar" class="settings-top-bar" variant="small" scroll-behavior="elevate" scroll-target="mdui-layout">
+        <mdui-button-icon icon="arrow_back" id="settings-back"></mdui-button-icon>
         <mdui-top-app-bar-title>设置</mdui-top-app-bar-title>
-        <div style="flex-grow: 1"></div>
     </mdui-top-app-bar>
     <mdui-layout>
         <div class="settings-container">
+            <p>*配色设置需要重新页面才能完全生效</p>
             <mdui-card variant="outlined" class="settings-card">
                 <div class="card-header">
                     <mdui-icon>palette</mdui-icon>

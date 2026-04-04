@@ -1,10 +1,11 @@
 <!DOCTYPE html>
-<html lang="zh-CN" class="mdui-theme-light">
+<html lang="zh-CN" class="mdui-theme-auto">
 
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>XQFChat</title>
+    <link rel="stylesheet" href="./src/css/common.css">
     <link rel="stylesheet" href="./src/css/index.css">
     <link rel="shortcut icon" href="./unpackage/res/icons/192x192.png" type="image/x-icon">
     <script src="./src/js/lib/mdui.global.min.js"></script>
@@ -12,17 +13,57 @@
 </head>
 
 <body>
+    <mdui-navigation-rail divider contained class="desktop-sidebar">
+        <mdui-avatar slot="top" id="sidebarUserAvatar" style="width:56px;height:56px;"></mdui-avatar>
+
+        <mdui-navigation-rail-item icon="list" value="rooms">聊天室</mdui-navigation-rail-item>
+        <mdui-navigation-rail-item icon="add" value="create">创建</mdui-navigation-rail-item>
+        <mdui-navigation-rail-item icon="person" value="me">个人</mdui-navigation-rail-item>
+
+        <div slot="bottom" class="sidebar-footer">
+            <mdui-divider></mdui-divider>
+
+            <div class="weather-info">
+                <div class="weather-location" id="weatherLocation">加载中...</div>
+                <div class="weather-temp" id="weatherTemp" title="点击查看详细信息">--°C</div>
+                <div class="weather-desc" id="weatherDesc">天气信息</div>
+            </div>
+        </div>
+    </mdui-navigation-rail>
     <mdui-layout>
         <div class="page-container">
-
-            <div class="page active" id="page-rooms">
-                <mdui-list>
-                    <mdui-list-item><mdui-text-field id="globalSearchInput" placeholder="搜索聊天室..." variant="outlined"
-                            clearable icon="search"></mdui-text-field></mdui-list-item>
-                </mdui-list>
-                <div class="list" id="roomList"></div>
-                <div class="list" id="globalSearchResults"></div>
+            <!-- 聊天室列表页面 -->
+            <div class="page" id="page-rooms">
+                <div class="rooms-split">
+                    <div class="room-list-panel">
+                        <mdui-list>
+                            <mdui-list-item>
+                                <mdui-text-field id="globalSearchInput" placeholder="搜索聊天室..." variant="outlined"
+                                    clearable icon="search"></mdui-text-field>
+                            </mdui-list-item>
+                        </mdui-list>
+                        <div class="list" id="roomList"></div>
+                        <div class="list" id="globalSearchResults"></div>
+                    </div>
+                    <div class="room-chat-panel">
+                        <div class="room-chat-placeholder" id="roomChatPlaceholder">
+                            <mdui-icon style="font-size: 56px; margin-bottom: 16px;">chat</mdui-icon>
+                            <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">XQFChat</div>
+                            <div style="color: rgba(var(--mdui-color-on-surface), 0.7); max-width: 320px;">
+                                <a href="https://blog.xiaofengqwq.com" class="footer-link">作者博客</a>
+                                <span class="divider">|</span>
+                                <a href="https://xiaofengqwq.com" class="footer-link">作者主页</a>
+                                <span class="divider">|</span>
+                                <a href="https://github.com/XiaoFeng-QWQ/XQFChat" target="_blank"
+                                    class="footer-link">开源地址</a>
+                            </div>
+                        </div>
+                        <iframe id="roomChatIframe" class="rooms-chat-frame" src="about:blank" frameborder="0"></iframe>
+                    </div>
+                </div>
             </div>
+
+            <!-- 创建聊天室页面 -->
             <form class="page" id="page-create">
                 <mdui-text-field name="name" label="聊天室名称" variant="outlined"
                     style="width: 100%; margin-bottom: 16px;"></mdui-text-field>
@@ -53,29 +94,39 @@
                 </mdui-button>
             </form>
 
+            <!-- 个人信息页面 -->
             <div class="page" id="page-me">
-                <mdui-card style="margin: 16px;" variant="noen">
-                    <div class="me-header">
-                        <mdui-avatar id="meAvatar" style="width:64px;height:64px;"></mdui-avatar>
-                        <div class="me-info">
-                            <div class="me-nickname" id="meNickname">加载中...</div>
-                            <div class="me-email" id="meEmail"></div>
-                        </div>
+                <div class="me-split">
+                    <div class="me-info-panel">
+                        <mdui-card style="margin: 16px;" variant="noen">
+                            <div class="me-header">
+                                <mdui-avatar id="meAvatar" style="width:64px;height:64px;"></mdui-avatar>
+                                <div class="me-info">
+                                    <div class="me-nickname" id="meNickname">加载中...</div>
+                                    <div class="me-email" id="meEmail"></div>
+                                </div>
+                            </div>
+                        </mdui-card>
+                        <mdui-divider></mdui-divider>
+                        <mdui-list>
+                            <mdui-list-item id="theme-toggle" icon="dark_mode" rounded>更改配色</mdui-list-item>
+                            <mdui-list-item icon="open_in_new" href="https://user.flmp.uk/" rounded>管理我的账户</mdui-list-item>
+                            <mdui-list-item id="settings-link" icon="settings" rounded>设置</mdui-list-item>
+                            <mdui-divider></mdui-divider>
+                            <mdui-list-item icon="logout" id="logoutBtn" rounded>退出登录</mdui-list-item>
+                        </mdui-list>
                     </div>
-                </mdui-card>
-                <mdui-divider></mdui-divider>
-                <mdui-list>
-                    <mdui-list-item id="theme-toggle" icon="dark_mode" rounded>更改配色</mdui-list-item>
-                    <mdui-list-item icon="open_in_new" href="https://user.flmp.uk/" rounded>管理我的账户</mdui-list-item>
-                    <mdui-list-item icon="settings" href="settings.html" rounded>设置</mdui-list-item>
-                    <mdui-divider></mdui-divider>
-                    <mdui-list-item icon="logout" id="logoutBtn" rounded>退出登录</mdui-list-item>
-                </mdui-list>
+                    <div class="me-settings-panel">
+                        <div class="me-settings-placeholder" id="meSettingsPlaceholder">
+                            <div style="font-size: 9.5rem; font-weight: 600; margin-bottom: 8px;">🤔</div>
+                        </div>
+                        <iframe id="meSettingsIframe" class="me-settings-frame" src="about:blank" frameborder="0"></iframe>
+                    </div>
+                </div>
             </div>
-
         </div>
 
-        <mdui-navigation-bar id="bottomNav" value="item-1" class="footer-container">
+        <mdui-navigation-bar id="bottomNav" class="footer-container">
             <mdui-navigation-bar-item icon="list" value="rooms">
                 列表
             </mdui-navigation-bar-item>
@@ -86,14 +137,80 @@
                 我
             </mdui-navigation-bar-item>
         </mdui-navigation-bar>
-        <div id="loading" class="mdui-circular-progress-overlay">
-            <mdui-circular-progress></mdui-circular-progress>
-        </div>
     </mdui-layout>
 
     <mdui-dialog close-on-overlay-click headline="真的要退出登录吗？" id="confirmLogoutDialog">
         <mdui-button slot="action" variant="text" id="cancelConfirmLogout">取消</mdui-button>
         <mdui-button slot="action" variant="tonal" id="confirmLogout">确定</mdui-button>
+    </mdui-dialog>
+
+    <mdui-dialog close-on-overlay-click headline="确认清空" id="confirmClearDialog">
+        <div id="confirmClearMessage">确定要清空所有聊天记录吗？此操作不可恢复。</div>
+        <div slot="action">
+            <mdui-button variant="text" id="cancelClear">取消</mdui-button>
+            <mdui-button variant="tonal" id="confirmClear">确定清空</mdui-button>
+        </div>
+    </mdui-dialog>
+
+    <mdui-dialog close-on-overlay-click headline="今日天气" id="weatherDialog">
+        <div id="weatherDialogContent">
+            <div class="weather-detail-card">
+                <!-- 主要天气信息 -->
+                <div class="weather-main">
+                    <div class="weather-city-temp">
+                        <div class="weather-city" id="weatherDialogCity">城市</div>
+                        <div class="weather-main-temp" id="weatherDialogTemp">25°C</div>
+                        <div class="weather-condition" id="weatherDialogCondition">晴天</div>
+                    </div>
+                    <div class="weather-icon-large">
+                        <mdui-icon id="weatherDialogIcon">wb_sunny</mdui-icon>
+                    </div>
+                </div>
+
+                <!-- 天气详情网格 -->
+                <div class="weather-details-grid">
+                    <div class="weather-detail-item">
+                        <mdui-icon>thermostat</mdui-icon>
+                        <div class="detail-label">体感温度</div>
+                        <div class="detail-value" id="weatherFeelsLike">25°C</div>
+                    </div>
+                    <div class="weather-detail-item">
+                        <mdui-icon>water_drop</mdui-icon>
+                        <div class="detail-label">湿度</div>
+                        <div class="detail-value" id="weatherHumidity">60%</div>
+                    </div>
+                    <div class="weather-detail-item">
+                        <mdui-icon>visibility</mdui-icon>
+                        <div class="detail-label">能见度</div>
+                        <div class="detail-value" id="weatherVisibility">10km</div>
+                    </div>
+                    <div class="weather-detail-item">
+                        <mdui-icon>air</mdui-icon>
+                        <div class="detail-label">风速</div>
+                        <div class="detail-value" id="weatherWindSpeed">3km/h</div>
+                    </div>
+                    <div class="weather-detail-item">
+                        <mdui-icon>schedule</mdui-icon>
+                        <div class="detail-label">观测时间</div>
+                        <div class="detail-value" id="weatherObsTime">--</div>
+                    </div>
+                </div>
+
+                <!-- 生活指数 -->
+                <div class="weather-living-section">
+                    <div class="section-title">
+                        <mdui-icon>local_florist</mdui-icon>
+                        <span>生活指数</span>
+                    </div>
+                    <div class="living-indices" id="weatherLivingIndices">
+                        <!-- 动态生成的生活指数 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div slot="action">
+            <mdui-button variant="tonal" id="closeWeatherDialog">知道了</mdui-button>
+        </div>
     </mdui-dialog>
 </body>
 

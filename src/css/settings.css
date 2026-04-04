@@ -365,6 +365,13 @@ mdui-layout {
     margin: 8px 0 4px;
 }
 
+/* 桌面端隐藏顶部栏 */
+@media (min-width: 1024px) {
+    #settingsTopBar {
+        display: none !important;
+    }
+}
+
 .app-version {
     font-size: 13px;
     color: rgb(var(--mdui-color-on-surface-variant));
@@ -418,10 +425,6 @@ mdui-layout {
 
 /* 移动端适配 */
 @media (max-width: 400px) {
-    .settings-container {
-        padding: 12px;
-    }
-
     .preset-grid {
         grid-template-columns: repeat(4, 1fr);
         gap: 8px;

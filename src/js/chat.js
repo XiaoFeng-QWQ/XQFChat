@@ -3,6 +3,31 @@
 import { CORE_CONFIG, USER_LOGIN_TOKEN, $ } from './core.js';
 import { HttpUtil, StorageUtil, formatTime, IndexedDBUtil } from './lib/util.js';
 
+// 检测是否在iframe环境中
+const isInIframe = () => {
+    return window.self !== window.top;
+};
+
+// 通知父窗口切换房间
+const notifyParentToSwitchRoom = (roomId) => {
+    if (isInIframe() && window.parent) {
+        window.parent.postMessage({
+            type: 'switchRoom',
+            roomId: roomId
+        }, '*');
+    }
+};
+
+// 清理iframe中聊天页面内容
+const clearIframeChatContent = () => {
+    document.body.className = '';
+    document.body.innerHTML = `
+        <div style="height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;color:rgba(0,0,0,.7);font-size:18px;">
+            已退出聊天室，正在返回聊天室列表...
+        </div>
+    `;
+};
+
 // DOM 元素引用（保持不变）
 const elements = {
     messageList: $('#messageList'),
@@ -14,7 +39,16 @@ const elements = {
     replyBody: $('#replyBody'),
     cancelReply: $('#cancelReply'),
     navigationDrawertoggle: $('#navigationDrawertoggle'),
+    mobileBackBtn: $('#mobileBackBtn'),
     navigationDrawer: $('#navigationDrawer'),
+    chatRoomList: $('#chatRoomList'),
+    chatRoomListEmpty: $('#chatRoomListEmpty'),
+    sidebarRoomAvatar: $('#sidebarRoomAvatar'),
+    sidebarRoomName: $('#sidebarRoomName'),
+    sidebarRoomOnline: $('#sidebarRoomOnline'),
+    sidebarBackBtn: $('#sidebarBackBtn'),
+    sidebarRoomInfoBtn: $('#sidebarRoomInfoBtn'),
+    refreshRoomListBtn: $('#refreshRoomListBtn'),
     leaveRoom: $('#leaveRoom'),
     confirmLeaveRoomDialog: $('#confirmLeaveRoomDialog'),
     cancelConfirmLeaveRoom: $('#cancelConfirmLeaveRoom'),
@@ -1401,6 +1435,7 @@ const updateRoomInfoUI = (room) => {
     $room.name.text(room.name);
     $room.desc.text(room.description || '-');
     $room.onlineCount.text(room.online_users || 0);
+    updateSidebarRoomInfo(room);
     console.debug(room);
 };
 
@@ -1410,6 +1445,15 @@ const updateRoomInfoUI = (room) => {
 const initializeEventListeners = () => {
     elements.navigationDrawertoggle.on("click", () => {
         elements.navigationDrawer.prop('open', true);
+    });
+
+    elements.mobileBackBtn.on("click", () => {
+        // 手机端返回按钮：通知父窗口返回房间列表
+        if (isInIframe()) {
+            notifyParentToSwitchRoom(null);
+        } else {
+            window.location.href = 'index.html';
+        }
     });
 
     elements.leaveRoom.on("click", () => {
@@ -1425,7 +1469,13 @@ const initializeEventListeners = () => {
                 }
             ).then(data => {
                 if (data.code === 200) {
-                    window.location.href = 'index.html';
+                    if (isInIframe()) {
+                        clearIframeChatContent();
+                        notifyParentToSwitchRoom(null);
+                    } else {
+                        // 不在iframe中，直接重定向到index.html
+                        window.location.href = 'index.html';
+                    }
                 } else {
                     mdui.snackbar({ message: '退出失败，请检查网络！' });
                 }
@@ -1499,6 +1549,33 @@ const initializeEventListeners = () => {
     elements.roomUpdateCancel.on('click', () => {
         elements.roomUpdateDialog.prop('open', false);
     });
+
+    elements.sidebarBackBtn.on('click', () => {
+        window.location.href = 'index.html';
+    });
+
+    elements.sidebarRoomInfoBtn.on('click', () => {
+        elements.navigationDrawer.prop('open', true);
+    });
+
+    elements.refreshRoomListBtn.on('click', () => {
+        loadChatRoomList();
+    });
+
+    elements.chatRoomList.on('click', '.chat-room-item', function () {
+        const roomId = $(this).attr('data-room-id');
+        if (!roomId || String(roomId) === String(state.currentRoomInfo?.id)) {
+            return;
+        }
+
+        if (isInIframe()) {
+            // 在iframe中，通过postMessage通知父窗口切换房间
+            notifyParentToSwitchRoom(roomId);
+        } else {
+            // 在非iframe环境中，重定向（虽然现在应该不会发生）
+            window.location.href = `chat.html?room_id=${roomId}`;
+        }
+    });
 };
 
 /**
@@ -1542,10 +1619,106 @@ const initializeScrollListener = () => {
 };
 
 /**
+ * 渲染聊天室列表项 HTML
+ * @param {Object} room
+ * @returns {string}
+ */
+const renderChatRoomItemHTML = (room) => {
+    const isActive = state.currentRoomInfo?.id === room.id;
+    const activeClass = isActive ? ' active' : '';
+    return `
+        <div class="chat-room-item${activeClass}" data-room-id="${room.id}">
+            <div class="room-item-avatar">
+                ${room.avatar_url ? `<img src="${room.avatar_url}" alt="${room.name}" />` : '<mdui-icon>meeting_room</mdui-icon>'}
+            </div>
+            <div class="room-item-meta">
+                <div class="room-item-title">${room.name}</div>
+                <div class="room-item-subtitle">在线 ${room.online_users || 0} · 最大 ${room.max_users || '-'} 人</div>
+            </div>
+        </div>`;
+};
+
+/**
+ * 渲染聊天室列表
+ * @param {Array} rooms
+ */
+const renderChatRoomList = (rooms) => {
+    if (!rooms || rooms.length === 0) {
+        elements.chatRoomList.html('');
+        elements.chatRoomListEmpty.text('暂无聊天室可切换').show();
+        return;
+    }
+
+    const itemsHTML = rooms.map(room => renderChatRoomItemHTML(room)).join('');
+    elements.chatRoomList.html(itemsHTML);
+    elements.chatRoomListEmpty.hide();
+};
+
+/**
+ * 加载当前用户的聊天室列表
+ */
+const loadChatRoomList = async () => {
+    elements.chatRoomListEmpty.text('正在加载我的聊天室...').show();
+    elements.chatRoomList.html('');
+
+    try {
+        const result = await HttpUtil.get(`${CORE_CONFIG.API_URL}/rooms/my`, {}, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${USER_LOGIN_TOKEN}`
+            }
+        });
+
+        renderChatRoomList(result.data?.rooms || []);
+    } catch (error) {
+        console.error('加载聊天室列表失败:', error);
+        elements.chatRoomListEmpty.text('加载聊天室列表失败，请稍后重试').show();
+    }
+};
+
+/**
+ * 更新侧边栏当前房间简介
+ * @param {Object} room
+ */
+const updateSidebarRoomInfo = (room) => {
+    if (!room) return;
+
+    if (room.avatar_url) {
+        elements.sidebarRoomAvatar.attr('src', room.avatar_url);
+    } else {
+        elements.sidebarRoomAvatar.html('<mdui-icon style="font-size: 28px;">meeting_room</mdui-icon>');
+    }
+
+    elements.sidebarRoomName.text(room.name || '-');
+    elements.sidebarRoomOnline.text(`在线：${room.online_users || 0}`);
+};
+
+/**
  * 初始化当前房间信息
  */
 const initializecurrentRoomInfo = async (roomData) => {
     if (!roomData?.data) return;
+
+    // 停止旧的轮询
+    if (state.pollTimer) {
+        clearTimeout(state.pollTimer);
+        state.pollTimer = null;
+    }
+    state.isPolling = false;
+
+    // 清空旧消息和状态
+    elements.messageList.html('');
+    state.lastMessageId = 0;
+    state.lastEventId = 0;
+    state.replyingMessage = null;
+    elements.replyPreview.css('display', 'none');
+
+    // 显示/隐藏手机端返回按钮
+    if (window.innerWidth < 1024 && isInIframe()) {
+        elements.mobileBackBtn.css('display', '');
+    } else {
+        elements.mobileBackBtn.css('display', 'none');
+    }
 
     const { data } = roomData;
     const $room = elements.roomData;
@@ -1565,6 +1738,7 @@ const initializecurrentRoomInfo = async (roomData) => {
     $room.id.text(data.id);
     $room.onlineCount.text(data.online_users);
     $room.createTime.text(formatTime(data.created_at).fullDateTime);
+    updateSidebarRoomInfo(data);
 
     try {
         const roomMembers = await HttpUtil.get(`${CORE_CONFIG.API_URL}/chat/members`, {
@@ -1611,19 +1785,65 @@ const initializecurrentRoomInfo = async (roomData) => {
 /**
  * 应用初始化
  */
+// 全局房间ID变量，由父窗口通过postMessage传递
+let currentRoomId = null;
+let currentActiveRoomId = null;
+let isInitialized = false;
+
+// 监听来自父窗口的消息
+window.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'setRoomId') {
+        const newRoomId = event.data.roomId;
+
+        // 如果是同一个房间，不处理
+        if (currentActiveRoomId === newRoomId && isInitialized) {
+            // 确保界面正常显示
+            if (elements.messageList.html() === '') {
+                // 如果消息列表为空，重新加载
+                initializeApp();
+            }
+            return;
+        }
+
+        currentRoomId = newRoomId;
+
+        if (currentRoomId) {
+            initializeApp();
+        }
+    }
+});
+
+// 在文件末尾的 initializeApp 函数中添加/修改
 const initializeApp = async () => {
     try {
+        // 检查登录状态：如果没有令牌，重定向到登录页面
+        if (!USER_LOGIN_TOKEN) {
+            window.location.href = 'login.html';
+            return;
+        }
+
+        if (!currentRoomId) {
+            // 如果还没有房间ID，等待postMessage
+            return;
+        }
+
+        // 如果是同一个房间，不需要重新初始化
+        if (currentActiveRoomId === currentRoomId && isInitialized) {
+            console.debug('Same room, skipping re-initialization');
+            return;
+        }
+
+        // 清理之前的聊天室状态
+        if (isInitialized) {
+            cleanupChatRoom();
+        }
+
         initializeEventListeners();
         initializeScrollListener();
 
-        const roomId = new URLSearchParams(window.location.search).get('room_id');
-        if (!roomId) {
-            throw new Error('未指定房间ID');
-        }
-
         // 获取房间详情
         const roomData = await HttpUtil.get(`${CORE_CONFIG.API_URL}/rooms/detail`, {
-            room_id: roomId
+            room_id: currentRoomId
         }, {
             headers: {
                 'Content-Type': 'application/json',
@@ -1633,15 +1853,22 @@ const initializeApp = async () => {
 
         // 等待房间详情初始化完成（包含初始消息加载和轮询启动）
         await initializecurrentRoomInfo(roomData);
-
-        // 添加初始焦点
-        setTimeout(() => {
-            elements.chatInput.trigger('focus');
-        }, 300);
+        loadChatRoomList();
 
         await bgSettings.load();
         bgSettings.apply();
         bgSettings.watch();
+
+        // 标记已初始化
+        currentActiveRoomId = currentRoomId;
+        isInitialized = true;
+
+        // 通知父窗口 iframe 已准备就绪
+        if (window.parent && window.parent !== window) {
+            window.parent.postMessage({
+                type: 'chatRoomReady'
+            }, '*');
+        }
 
         console.debug(state)
     } catch (error) {
@@ -1652,6 +1879,31 @@ const initializeApp = async () => {
     }
 };
 
-initializeApp();
+// 添加清理函数
+const cleanupChatRoom = () => {
+    // 停止轮询
+    if (state.pollTimer) {
+        clearTimeout(state.pollTimer);
+        state.pollTimer = null;
+    }
+    state.isPolling = false;
 
-export { elements };
+    // 清空状态
+    state.lastMessageId = 0;
+    state.lastEventId = 0;
+    state.timelineItems = [];
+    state.itemIds.clear();
+    state.lastSenderId = null;
+    state.lastMsgTime = 0;
+    state.replyingTo = null;
+    state.lastItemTime = 0;
+
+    // 清空消息列表
+    elements.messageList.html('');
+    elements.replyPreview.hide();
+
+    // 清空输入框
+    elements.chatInput.val('');
+};
+
+export { elements, cleanupChatRoom };

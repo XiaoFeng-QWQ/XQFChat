@@ -5,6 +5,89 @@ body {
     overscroll-behavior-y: contain;
 }
 
+/* 登录页面容器 */
+.login-container-wrapper {
+    width: 100%;
+    max-width: 360px;
+    padding: 24px;
+    box-sizing: border-box;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+}
+
+.login-header {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.login-header .logo {
+    margin-bottom: 8px;
+    color: rgb(var(--mdui-color-primary));
+}
+
+.login-header .title {
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.login-header .subtitle {
+    font-size: 13px;
+    opacity: .7;
+    margin-top: 4px;
+}
+
+.login-card {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.login-footer {
+    margin-top: 32px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(var(--mdui-color-outline-variant), 0.3);
+}
+
+.footer-content {
+    text-align: center;
+    font-size: 12px;
+    color: rgba(var(--mdui-color-on-surface), 0.6);
+}
+
+.footer-links {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+
+.footer-link {
+    color: rgba(var(--mdui-color-primary), 0.8);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.footer-link:hover {
+    color: rgb(var(--mdui-color-primary));
+    text-decoration: underline;
+}
+
+.divider {
+    color: rgba(var(--mdui-color-outline-variant), 0.5);
+}
+
+.copyright {
+    font-size: 11px;
+    opacity: 0.7;
+}
+
 #roomList {
     padding: 8px;
     background-color: rgb(var(--mdui-color-surface-container-low));
@@ -79,14 +162,156 @@ body {
     border-bottom: 1px solid rgba(var(--mdui-color-outline), 0.2);
 }
 
+/* 页面通用样式 */
 .page {
-    display: none;
-    height: 100%;
+    display: none !important;
     overflow-y: auto;
+    will-change: transform, opacity;
+}
+
+/* 页面切换动画 - 退出动画 */
+.page-exit-left {
+    animation: slideOutLeft 0.3s ease forwards !important;
+}
+
+.page-exit-right {
+    animation: slideOutRight 0.3s ease forwards !important;
+}
+
+/* 页面切换动画 - 进入动画 */
+.page-enter-right {
+    animation: slideInRight 0.3s ease forwards !important;
+}
+
+.page-enter-left {
+    animation: slideInLeft 0.3s ease forwards !important;
+}
+
+/* 滑出动画 - 向左 */
+@keyframes slideOutLeft {
+    0% {
+        transform: translateX(0);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateX(-30%);
+        opacity: 0;
+    }
+}
+
+/* 滑出动画 - 向右 */
+@keyframes slideOutRight {
+    0% {
+        transform: translateX(0);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateX(30%);
+        opacity: 0;
+    }
+}
+
+/* 滑入动画 - 从右侧进入 */
+@keyframes slideInRight {
+    0% {
+        transform: translateX(30%);
+        opacity: 0;
+    }
+
+    100% {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* 滑入动画 - 从左侧进入 */
+@keyframes slideInLeft {
+    0% {
+        transform: translateX(-30%);
+        opacity: 0;
+    }
+
+    100% {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* 进度条样式 */
+#pageTransitionProgress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 10000;
+}
+
+#page-login {
+    align-items: center;
+    justify-content: center;
+    background-color: rgb(var(--mdui-color-surface));
+}
+
+.page {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
 }
 
 .page.active {
-    display: block;
+    display: block !important;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.page.active#page-login {
+    display: flex;
+}
+
+#page-create {
+    padding: 16px;
+}
+
+#page-rooms .rooms-split {
+    display: flex;
+    flex-direction: column;
+}
+
+.room-list-panel {
+    display: flex;
+    flex-direction: column;
+}
+
+.room-chat-panel {
+    display: none;
+}
+
+.rooms-chat-frame {
+    display: none;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    flex: 1;
+}
+
+/* 房间列表高亮样式 */
+.room-list-panel mdui-list-item.active {
+    background-color: rgb(var(--mdui-color-primary-container));
+    color: rgb(var(--mdui-color-on-primary-container));
+}
+
+.room-chat-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px;
+    min-height: 360px;
+    text-align: center;
+    color: rgba(var(--mdui-color-on-surface), 0.7);
+    background: rgb(var(--mdui-color-surface-container-low));
 }
 
 #page-create {
@@ -153,4 +378,373 @@ body {
 
 .unread-badge {
     margin-left: 8px;
+}
+
+/* 个人页面两列布局 */
+.me-split {
+    display: flex;
+    height: 100%;
+}
+
+.me-info-panel {
+    display: flex;
+    flex-direction: column;
+    min-width: 280px;
+    max-width: 360px;
+    border-right: 1px solid rgb(var(--mdui-color-outline-variant));
+    overflow-y: auto;
+}
+
+.me-settings-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    min-width: 0;
+}
+
+.me-settings-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px;
+    min-height: 360px;
+    text-align: center;
+    color: rgba(var(--mdui-color-on-surface), 0.7);
+    flex: 1;
+}
+
+.me-settings-frame {
+    flex: 1;
+    border: none;
+    width: 100%;
+    display: none;
+}
+
+
+
+.card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+    font-size: 16px;
+    font-weight: 600;
+    color: rgb(var(--mdui-color-on-surface));
+}
+
+.card-header mdui-icon {
+    font-size: 24px;
+    color: rgb(var(--mdui-color-primary));
+}
+
+.color-presets {
+    margin-bottom: 20px;
+}
+
+.preset-title {
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 12px;
+    color: rgb(var(--mdui-color-on-surface-variant));
+}
+
+.preset-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+
+.color-preset {
+    aspect-ratio: 1/1;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    border: 2px solid transparent;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.color-preset.active {
+    border-color: rgb(var(--mdui-color-on-surface));
+    box-shadow: 0 0 0 2px rgb(var(--mdui-color-primary-container));
+}
+
+/* 移动端页面样式 */
+#page-me {
+    padding: 0;
+    overflow: auto;
+}
+
+#page-me .me-split {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+}
+
+#page-me .me-info-panel {
+    border-right: none;
+    max-width: 100%;
+    min-width: auto;
+    max-height: auto;
+    overflow: visible;
+}
+
+/* 手机端查看聊天室时的样式 */
+#page-rooms.mobile-viewing-room .room-list-panel {
+    display: none;
+}
+
+#page-rooms.mobile-viewing-room .room-chat-panel {
+    display: flex !important;
+    height: calc(100dvh);
+    overflow: hidden;
+}
+
+/* 手机端查看设置时的样式 */
+#page-me.mobile-viewing-settings {
+    overflow: hidden;
+    height: 100dvh;
+}
+
+#page-me.mobile-viewing-settings .me-split {
+    height: 100%;
+}
+
+#page-me.mobile-viewing-settings .me-info-panel {
+    display: none;
+}
+
+#page-me.mobile-viewing-settings .me-settings-panel {
+    display: flex !important;
+    height: 100%;
+    overflow: hidden;
+}
+
+#page-me.mobile-viewing-settings .me-settings-placeholder {
+    display: none !important;
+}
+
+#page-me.mobile-viewing-settings .me-settings-frame {
+    flex: 1;
+    display: flex !important;
+}
+
+/* 页面淡入淡出动画 */
+.page {
+    display: none !important;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.page.active {
+    display: block !important;
+    opacity: 1;
+}
+
+/* 确保登录页面特殊处理 */
+.page.active#page-login {
+    display: flex !important;
+}
+
+/* ========== 桌面端特定样式 ========== */
+@media (min-width: 1024px) {
+    .desktop-sidebar {
+        display: flex;
+    }
+
+    body {
+        overscroll-behavior: contain;
+    }
+
+    #roomList {
+        max-height: 100%;
+        height: 100%;
+        padding: 0;
+    }
+
+    #roomList mdui-list-item {
+        margin-bottom: 8px;
+    }
+
+    .page-container {
+        height: 100%;
+        width: 96%;
+        max-height: none;
+    }
+
+    #page-login {
+        height: 100%;
+        display: flex;
+    }
+
+    /* 桌面端页面统一内容边距 */
+    #page-rooms,
+    #page-create,
+    #page-me {
+        margin-top: 0;
+        overflow-y: auto;
+        height: 100vh;
+    }
+
+    #page-rooms {
+        display: flex;
+        flex-direction: column;
+        box-sizing: border-box;
+    }
+
+    #page-rooms .rooms-split {
+        flex-direction: row;
+        height: calc(100vh - 0px);
+    }
+
+    .room-list-panel {
+        width: 360px;
+        max-width: 280px;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        /* border-right: 1px solid rgb(var(--mdui-color-outline-variant)); */
+    }
+
+    .room-chat-panel {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        min-width: 0;
+        height: 100%;
+        overflow: hidden;
+    }
+
+    .room-chat-panel .room-chat-placeholder {
+        flex: 1;
+        overflow: auto;
+    }
+
+    #page-rooms .list {
+        flex: 1;
+        padding: 0;
+        background: transparent;
+        max-height: none;
+        overflow: auto;
+    }
+
+    #roomList {
+        height: auto;
+    }
+
+    #page-rooms mdui-list {
+        padding: 0 0 16px 0;
+        margin-bottom: 0;
+    }
+
+    #globalSearchInput {
+        margin-bottom: 24px;
+    }
+
+    #roomList mdui-list-item {
+        margin-bottom: 8px;
+    }
+
+    /* 桌面端创建页面样式 */
+    #page-create {
+        padding: 32px;
+        margin: 0 auto;
+    }
+
+    #page-create mdui-text-field {
+        margin-bottom: 16px;
+    }
+
+    /* 桌面端个人页面样式 */
+    #page-me {
+        padding: 0;
+        overflow: hidden;
+        display: flex;
+    }
+
+    #page-me .me-split {
+        flex-direction: row;
+    }
+
+    .me-split {
+        width: 100%;
+        height: 100%;
+    }
+
+    .me-info-panel {
+        display: flex;
+    }
+
+    .me-settings-panel {
+        display: flex;
+    }
+
+    #page-me mdui-card {
+        margin-bottom: 16px;
+    }
+
+    #page-me mdui-divider {
+        margin: 16px 0;
+    }
+
+    #page-me mdui-list {
+        padding: 0;
+    }
+
+    .me-info-panel mdui-card {
+        margin: 16px;
+    }
+
+    .me-info-panel mdui-divider {
+        margin: 0;
+    }
+
+    .me-info-panel mdui-list {
+        border-radius: 0;
+    }
+
+    .me-settings-frame {
+        min-height: calc(100vh - 0px);
+    }
+
+    /* 桌面端设置页面 */
+    #page-settings {
+        display: none;
+    }
+
+    .settings-container {
+        flex: 1;
+        overflow: hidden;
+        max-width: 100%;
+        margin: 0;
+        width: 100%;
+        padding: 0;
+        min-height: 0;
+        height: 100%;
+    }
+
+    .settings-card {
+        border-radius: 12px;
+    }
+
+    .settings-card:last-child {
+        grid-column: 1 / -1;
+    }
+
+    .card-header {
+        margin-bottom: 20px;
+        font-size: 16px;
+    }
+
+    .preset-grid {
+        grid-template-columns: repeat(6, 1fr);
+        gap: 12px;
+    }
+
+    .color-preset {
+        width: 56px;
+        height: 56px;
+    }
 }

@@ -1,19 +1,18 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="mdui-theme-auto">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>加载中…… - XQFChat</title>
-    <link rel="shortcut icon" href="./unpackage/res/icons/192x192.png" type="image/x-icon">
-    <link rel="stylesheet" href="./src/css/chat.css">
-    <script src="./src/js/lib/mdui.global.min.js"></script>
-    <script src="./src/js/lib/marked.umd.min.js"></script>
-    <script type="module" src="./src/js/chat.js"></script>
+    <link rel="shortcut icon" href="./../../unpackage/res/icons/192x192.png" type="image/x-icon">
+    <link rel="stylesheet" href="./../../src/css/chat.css">
+    <script src="./../../src/js/lib/mdui.global.min.js"></script>
+    <script src="./../../src/js/lib/marked.umd.min.js"></script>
+    <script type="module" src="./../../src/js/chat.js"></script>
 </head>
 
-<body>
-    <mdui-layout>
+<body class="chat-page iframe-chat">
+    <mdui-layout style="display: block;">
         <mdui-navigation-drawer placement="right" id="navigationDrawer" modal close-on-esc close-on-overlay-click
             contained>
             <div style="padding: 12px;">
@@ -92,10 +91,9 @@
             </mdui-list>
 
         </mdui-navigation-drawer>
-
         <mdui-top-app-bar variant="center-aligned" scroll-behavior="elevate" scroll-target="#messageList">
-            <mdui-button-icon icon="arrow_back" onclick="window.location.href = 'index.html'"></mdui-button-icon>
-            <mdui-top-app-bar-title id="title">加载中……</mdui-top-app-bar-title>
+            <mdui-button-icon id="mobileBackBtn" icon="arrow_back" style="display: none;"></mdui-button-icon>
+            <mdui-top-app-bar-title id="title"></mdui-top-app-bar-title>
             <div style="flex-grow: 1"></div>
             <mdui-button-icon id="navigationDrawertoggle" icon="menu"></mdui-button-icon>
         </mdui-top-app-bar>

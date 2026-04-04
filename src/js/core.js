@@ -120,4 +120,4 @@ $(document).ready(() => {
     }
 });
 
-export { CORE_CONFIG, USER_LOGIN_TOKEN, $ };
+export { CORE_CONFIG, USER_LOGIN_TOKEN, $, ThemeManager };
