@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="mdui-theme-auto">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" href="./../../src/css/common.css">
+    <link rel="shortcut icon" href="./../../unpackage/res/icons/192x192.png" type="image/x-icon">
+    <script src="./../../src/js/lib/mdui.global.min.js"></script>
+    <script type="module" src="./../../src/js/bots.js"></script>
+    <style>
+        #botsEmpty {
+            display: none;
+            padding: 32px;
+            text-align: center;
+            width: 100%;
+            max-width: 400px;
+            position: absolute;
+            top: 20%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+    </style>
+</head>
+
+<body class="bots-page">
+    <mdui-top-app-bar id="botsTopBar" variant="small" scroll-behavior="elevate">
+        <mdui-button-icon icon="arrow_back" id="bots-back"></mdui-button-icon>
+        <mdui-top-app-bar-title>Bot管理</mdui-top-app-bar-title>
+        <mdui-button-icon icon="add" id="addBotBtn"></mdui-button-icon>
+    </mdui-top-app-bar>
+    <mdui-layout>
+        <div class="bots-container">
+            <div id="botsLoading" class="mdui-circular-progress-overlay" style="display: flex;">
+                <mdui-circular-progress></mdui-circular-progress>
+            </div>
+
+            <div id="botsList" class="bots-list"></div>
+
+            <mdui-card variant="outlined" id="botsEmpty" class="empty-state">
+                <mdui-icon style="font-size: 56px; margin-bottom: 16px;">storefront</mdui-icon>
+                <div style="font-size: 16px; color: rgba(var(--mdui-color-on-surface), 0.7); margin-bottom: 16px;">
+                    你还没有创建任何机器人🤔
+                </div>
+                <mdui-button variant="tonal" id="createFirstBotBtn">
+                    <mdui-icon slot="icon">add</mdui-icon>
+                    创建第一个机器人
+                </mdui-button>
+            </mdui-card>
+        </div>
+    </mdui-layout>
+
+    <mdui-dialog close-on-overlay-click headline="创建机器人" id="createBotDialog" close-on-esc
+        style="--mdui-dialog-max-width: 500px;">
+        <form id="createBotForm" style="padding-top: 10px;">
+            <mdui-text-field id="botName" label="机器人名称" variant="outlined" required
+                style="width: 100%; margin-bottom: 16px;"></mdui-text-field>
+
+            <mdui-text-field id="botDescription" label="机器人描述" variant="outlined" rows="3" multiline
+                style="width: 100%; margin-bottom: 16px;"></mdui-text-field>
+
+            <mdui-text-field id="botWebhookUrl" label="Webhook URL" variant="outlined" required
+                style="width: 100%; margin-bottom: 16px;"></mdui-text-field>
+
+            <mdui-select id="eventTypesSelect" multiple label="订阅事件" placeholder="请选择订阅的事件"
+                style="width: 100%; margin-bottom: 16px;">
+            </mdui-select>
+        </form>
+        <div slot="action">
+            <mdui-button variant="text" id="cancelCreateBot">取消</mdui-button>
+            <mdui-button variant="tonal" id="submitCreateBot">创建</mdui-button>
+        </div>
+    </mdui-dialog>
+
+    <mdui-dialog close-on-overlay-click headline="编辑机器人" id="editBotDialog" close-on-esc
+        style="--mdui-dialog-max-width: 500px;">
+        <form id="editBotForm" style="padding-top: 10px;">
+            <input type="hidden" id="editBotId">
+
+            <mdui-text-field id="editBotName" label="机器人名称" variant="outlined" required
+                style="width: 100%; margin-bottom: 16px;"></mdui-text-field>
+
+            <mdui-text-field id="editBotDescription" label="机器人描述" variant="outlined" rows="3" multiline
+                style="width: 100%; margin-bottom: 16px;"></mdui-text-field>
+
+            <mdui-text-field id="editBotAvatarUrl" label="头像URL" variant="outlined"
+                style="width: 100%; margin-bottom: 16px;"></mdui-text-field>
+
+            <mdui-text-field id="editBotWebhookUrl" label="Webhook URL" variant="outlined"
+                style="width: 100%; margin-bottom: 16px;"></mdui-text-field>
+
+            <mdui-select id="editEventTypesSelect" multiple label="订阅事件" placeholder="请选择订阅的事件"
+                style="width: 100%; margin-bottom: 16px;">
+            </mdui-select>
+        </form>
+        <div slot="action">
+            <mdui-button variant="text" id="cancelEditBot">取消</mdui-button>
+            <mdui-button variant="tonal" id="openMarketplaceSettings">市场设置</mdui-button>
+            <mdui-button variant="filled" id="submitEditBot">保存</mdui-button>
+        </div>
+    </mdui-dialog>
+
+    <mdui-dialog close-on-overlay-click headline="市场发布设置" id="marketplaceSettingsDialog" close-on-esc
+        style="--mdui-dialog-max-width: 500px;">
+        <form id="marketplaceSettingsForm" style="padding-top: 10px;">
+            <input type="hidden" id="marketplaceBotId">
+
+            <mdui-select id="marketplaceCategory" label="分类" variant="outlined" value="other"
+                style="width: 100%; margin-bottom: 16px;">
+                <mdui-menu-item value="assistant">助手</mdui-menu-item>
+                <mdui-menu-item value="entertainment">娱乐</mdui-menu-item>
+                <mdui-menu-item value="utility">工具</mdui-menu-item>
+                <mdui-menu-item value="moderation">管理</mdui-menu-item>
+                <mdui-menu-item value="game">游戏</mdui-menu-item>
+                <mdui-menu-item value="education">教育</mdui-menu-item>
+                <mdui-menu-item value="other">其他</mdui-menu-item>
+            </mdui-select>
+
+            <mdui-text-field id="marketplaceTags" label="标签（多个用逗号分隔）" variant="outlined" placeholder="例如：聊天,工具,娱乐"
+                style="width: 100%; margin-bottom: 16px;"></mdui-text-field>
+
+            <mdui-text-field id="marketplacePrice" label="价格" variant="outlined" type="number" min="0" step="0.01"
+                value="0" style="width: 100%; margin-bottom: 16px;"></mdui-text-field>
+        </form>
+        <div slot="action">
+            <mdui-button variant="text" id="cancelMarketplaceSettings">取消</mdui-button>
+            <mdui-button variant="text" id="unpublishFromMarketplace" style="display: none;">从市场下架</mdui-button>
+            <mdui-button variant="tonal" id="publishToMarketplace">发布到市场</mdui-button>
+        </div>
+    </mdui-dialog>
+
+    <mdui-dialog close-on-overlay-click headline="确认删除" id="deleteBotDialog">
+        <div>确定要删除这个机器人吗？此操作不可恢复。</div>
+        <div slot="action">
+            <mdui-button variant="text" id="cancelDeleteBot">取消</mdui-button>
+            <mdui-button variant="tonal" id="confirmDeleteBot"
+                style="--mdui-color-primary: rgb(var(--mdui-color-error));">删除</mdui-button>
+        </div>
+    </mdui-dialog>
+
+    <mdui-dialog close-on-overlay-click headline="机器人Token" id="botTokenDialog">
+        <div style="margin-bottom: 16px;">
+            <div style="font-size: 14px; color: rgba(var(--mdui-color-on-surface), 0.7); margin-bottom: 8px;">
+                请妥善保管此Token，它只显示一次！
+            </div>
+            <mdui-text-field id="botTokenField" variant="outlined" readonly style="width: 100%;"></mdui-text-field>
+        </div>
+        <div slot="action">
+            <mdui-button variant="tonal" id="copyBotToken">
+                <mdui-icon slot="icon">content_copy</mdui-icon>
+                复制
+            </mdui-button>
+            <mdui-button variant="text" id="closeBotTokenDialog">关闭</mdui-button>
+        </div>
+    </mdui-dialog>
+</body>
+
+</html>

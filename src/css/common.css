@@ -183,6 +183,11 @@ mdui-list {
     .footer-container {
         display: none;
     }
+    
+    /* 桌面端隐藏 bots-back 按钮 */
+    #bots-back {
+        display: none !important;
+    }
 }
 
 /* 天气详情卡片 */

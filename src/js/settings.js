@@ -1,6 +1,6 @@
 "use strict";
 
-import { CORE_CONFIG, USER_LOGIN_TOKEN, $ } from './core.js';
+import { USER_LOGIN_TOKEN, $ } from './core.js';
 import { StorageUtil, IndexedDBUtil, progressManager } from './lib/util.js';
 
 // 从 mdui 全局对象中获取函数

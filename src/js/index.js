@@ -1,5 +1,3 @@
-// index.js - 完整修改后的代码
-
 "use strict";
 
 import { CORE_CONFIG, USER_LOGIN_TOKEN, $, ThemeManager } from './core.js';
@@ -17,7 +15,7 @@ const elements = {
     globalSearchInput: $('#globalSearchInput'),
     globalSearchResults: $('#globalSearchResults'),
     roomChatIframe: $('#roomChatIframe'),
-    roomSettingsIframe: $('#roomSettingsIframe'), // 新增：设置页面的 iframe
+    roomSettingsIframe: $('#roomSettingsIframe'),
 
     createRoomBtn: $('#createRoomBtn'),
 
@@ -57,6 +55,9 @@ const iframeCache = {
         currentRoomId: null
     },
     settings: {
+        loaded: false
+    },
+    bots: {
         loaded: false
     }
 };
@@ -542,6 +543,29 @@ const openSettingsInIframe = () => {
     $iframe.show();
 };
 
+/**
+ * 打开Bot管理页面 iframe
+ */
+const openBotsInIframe = () => {
+    const $iframe = elements.meSettingsIframe;
+    const iframeElement = $iframe[0];
+
+    const isIframeLoaded = iframeCache.bots.loaded && iframeElement.src && iframeElement.src.includes('bots.html');
+
+    if (!isIframeLoaded) {
+        // 首次加载：设置 src 并等待加载完成
+        $iframe.off('load').on('load', function () {
+            iframeCache.bots.loaded = true;
+        });
+
+        $iframe.attr('src', './src/components/bots.html');
+    }
+    // 如果已加载，直接显示，不需要重新加载
+
+    elements.meSettingsPlaceholder.hide();
+    $iframe.show();
+};
+
 const openRoom = (roomId) => {
     if (elements.pages.rooms.hasClass('active')) {
         openRoomInIframe(roomId);
@@ -663,6 +687,8 @@ const createChatRoom = async () => {
         return;
     }
 
+    const $btn = elements.createRoomBtn;
+    $btn.attr('loading', '').attr('disabled', '');
     progressManager.start();
 
     try {
@@ -709,6 +735,7 @@ const createChatRoom = async () => {
         });
     } finally {
         progressManager.stop();
+        $btn.removeAttr('loading').removeAttr('disabled');
     }
 };
 
@@ -817,21 +844,31 @@ const bindEvents = () => {
     elements.logoutBtn.on('click', (event) => {
         elements.confirmLogoutDialog.prop('open', true);
 
-        elements.confirmLogout.on('click', (event) => {
-            HttpUtil.post(
-                `${CORE_CONFIG.USER_API}/auth/logout`,
-                {},
-                {
-                    headers: { 'Authorization': `Bearer ${USER_LOGIN_TOKEN}` }
-                }
-            ).then(data => {
+        elements.confirmLogout.on('click', async () => {
+            const $btn = elements.confirmLogout;
+            $btn.attr('loading', '').attr('disabled', '');
+            
+            try {
+                const data = await HttpUtil.post(
+                    `${CORE_CONFIG.USER_API}/auth/logout`,
+                    {},
+                    {
+                        headers: { 'Authorization': `Bearer ${USER_LOGIN_TOKEN}` }
+                    }
+                );
+                
                 if (data.code === 200) {
                     StorageUtil.removeItem(CORE_CONFIG.STORAGE_KEYS.USER_INFO);
                     window.location.href = 'login.html';
                 } else {
                     mdui.snackbar({ message: '退出失败，请检查网络！' });
                 }
-            })
+            } catch (error) {
+                console.error('退出登录失败:', error);
+                mdui.snackbar({ message: '退出失败，请检查网络！' });
+            } finally {
+                $btn.removeAttr('loading').removeAttr('disabled');
+            }
         });
 
         elements.cancelConfirmLogout.on('click', (event) => {
@@ -877,6 +914,20 @@ const bindEvents = () => {
         }
     });
 
+    $('#bots-link').on('click', (e) => {
+        e.preventDefault();
+
+        openBotsInIframe();
+
+        if (window.innerWidth >= 1024) {
+            // 桌面端处理
+        } else {
+            switchPage('me');
+            elements.pages.me.addClass('mobile-viewing-settings');
+            elements.bottomNav.hide();
+        }
+    });
+
     $('#closeWeatherDialog').on('click', () => {
         $('#weatherDialog')[0].open = false;
     });
@@ -904,6 +955,11 @@ const bindEvents = () => {
                 loadRooms();
             }
         } else if (event.data && event.data.type === 'settingsBack') {
+            elements.pages.me.removeClass('mobile-viewing-settings');
+            elements.meSettingsPlaceholder.show();
+            elements.bottomNav.show();
+            elements.meSettingsIframe.hide();
+        } else if (event.data && event.data.type === 'botsBack') {
             elements.pages.me.removeClass('mobile-viewing-settings');
             elements.meSettingsPlaceholder.show();
             elements.bottomNav.show();

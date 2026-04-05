@@ -161,6 +161,10 @@
     overflow: hidden;
 }
 
+.footer-container {
+    position: relative;
+}
+
 .input-area {
     display: flex;
     align-items: center;
@@ -230,6 +234,16 @@ mdui-text-field {
 .deleted-message {
     font-style: italic;
     opacity: 0.7;
+}
+
+/* 选中消息样式 */
+.message-row.selected {
+    background-color: rgba(var(--mdui-color-primary), 0.1);
+    border-radius: 8px;
+}
+
+.mdui-theme-dark .message-row.selected {
+    background-color: rgba(var(--mdui-color-primary), 0.2);
 }
 
 /* 表情图标样式 */
@@ -317,6 +331,122 @@ mdui-text-field {
     color: rgb(var(--mdui-color-on-primary));
     border-radius: 50%;
     text-decoration: none;
+}
+
+/* 转发卡片样式 */
+.forward-card {
+    padding: 12px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.forward-card:hover {
+    background: rgba(var(--mdui-color-primary), 0.05);
+}
+
+.forward-card:active {
+    background: rgba(var(--mdui-color-primary), 0.1);
+}
+
+.forward-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    font-size: 14px;
+    font-weight: 500;
+    color: rgb(var(--mdui-color-on-surface-variant));
+}
+
+.forward-card-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.forward-message-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.forward-message-sender {
+    font-size: 12px;
+    font-weight: 500;
+    color: rgb(var(--mdui-color-on-surface-variant));
+}
+
+.forward-message-content {
+    font-size: 14px;
+    color: rgb(var(--mdui-color-on-surface));
+    line-height: 1.4;
+}
+
+.forward-message-more {
+    font-size: 12px;
+    color: rgb(var(--mdui-color-primary));
+    font-weight: 500;
+    text-align: center;
+    margin-top: 4px;
+    padding: 8px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.forward-message-more:hover {
+    background: rgba(var(--mdui-color-primary), 0.1);
+}
+
+/* 详细转发记录样式 */
+.detail-forward-item:last-child {
+    border-bottom: none !important;
+}
+
+/* 嵌套转发卡片样式 */
+.nested-forward-card {
+    margin-top: 8px;
+    margin-bottom: 8px;
+}
+
+.nested-forward-card:hover {
+    background-color: rgba(var(--mdui-color-primary), 0.1) !important;
+}
+
+.nested-forward-card:active {
+    background-color: rgba(var(--mdui-color-primary), 0.15) !important;
+}
+
+/* 暗色主题适配嵌套转发卡片 */
+.mdui-theme-dark .nested-forward-card {
+    border-color: rgba(255, 255, 255, 0.15);
+    background: rgba(var(--mdui-color-primary), 0.1);
+}
+
+.mdui-theme-dark .nested-forward-card:hover {
+    background-color: rgba(var(--mdui-color-primary), 0.15) !important;
+}
+
+.mdui-theme-dark .nested-forward-card:active {
+    background-color: rgba(var(--mdui-color-primary), 0.2) !important;
+}
+
+/* 暗色主题适配 */
+.mdui-theme-dark .forward-card {
+    background: rgb(var(--mdui-color-surface-container-low));
+}
+
+.mdui-theme-dark .forward-card:hover {
+    background: rgba(var(--mdui-color-primary), 0.15);
+}
+
+.mdui-theme-dark .forward-card:active {
+    background: rgba(var(--mdui-color-primary), 0.25);
+}
+
+.mdui-theme-dark .forward-card-header {
+    border-bottom-color: rgba(255, 255, 255, 0.1);
 }
 
 /* 暗色主题适配 */
@@ -513,7 +643,8 @@ body.iframe-chat mdui-top-app-bar {
 }
 
 body.iframe-chat main.list {
-    height: calc(100vh - 112px); /* 减去顶部栏和底部栏的高度 */
+    height: calc(100vh - 112px);
+    /* 减去顶部栏和底部栏的高度 */
     overflow-y: auto;
 }
 
@@ -521,4 +652,221 @@ body.iframe-chat .footer-container {
     position: sticky;
     bottom: 0;
     z-index: 100;
+    position: relative;
+}
+
+#forwardContent {
+    height: 100%;
+    display: grid;
+    grid-template-columns: 300px 1fr;
+}
+
+.forward-room-item {
+    padding: 12px;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    transition: background-color 0.2s;
+}
+
+.forward-room-item:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.forward-room-item.selected {
+    background-color: rgba(0, 0, 0, 0.1);
+    font-weight: 500;
+}
+
+/* 消息预览样式 */
+#forwardPreviewContent {
+    padding: 12px;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    #forwardDialog {
+        width: 95%;
+        height: 80vh;
+    }
+
+    #forwardContent {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+    }
+
+    #forwardContent>div:first-child {
+        border-right: none;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        max-height: 200px;
+    }
+}
+
+/* 暗色主题适配 */
+.mdui-theme-dark .forward-room-item {
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.mdui-theme-dark .forward-room-item:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.mdui-theme-dark .forward-room-item.selected {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* 文件管理样式 */
+.file-manager-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 8px;
+    transition: background-color 0.2s;
+    margin-bottom: 8px;
+}
+
+.file-manager-item:hover {
+    background-color: rgba(var(--mdui-color-primary), 0.05);
+}
+
+.file-manager-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background-color: rgb(var(--mdui-color-primary-container));
+    color: rgb(var(--mdui-color-on-primary-container));
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+.file-manager-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.file-manager-name {
+    font-weight: 500;
+    font-size: 14px;
+    color: rgb(var(--mdui-color-on-surface));
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.file-manager-meta {
+    font-size: 12px;
+    color: rgb(var(--mdui-color-on-surface-variant));
+    display: flex;
+    gap: 4px;
+}
+
+.file-manager-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.file-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    color: rgb(var(--mdui-color-on-surface-variant));
+    transition: background-color 0.2s;
+    text-decoration: none;
+}
+
+.file-action-btn:hover {
+    background-color: rgba(var(--mdui-color-primary), 0.1);
+    color: rgb(var(--mdui-color-primary));
+}
+
+.mdui-circular-progress-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(var(--mdui-color-surface), 0.8);
+    z-index: 10;
+}
+
+/* 表情面板样式 */
+.emoji-panel {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    right: 0;
+    background: rgb(var(--mdui-color-surface));
+    border-top: 1px solid rgb(var(--mdui-color-outline-variant));
+    max-height: 300px;
+    display: none;
+    flex-direction: column;
+    z-index: 99;
+}
+
+.emoji-tabs {
+    --mdui-tabs-height: 48px;
+}
+
+.emoji-panel-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+}
+
+.emoji-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+    gap: 8px;
+}
+
+.emoji-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    font-size: 24px;
+}
+
+.emoji-item:hover {
+    background-color: rgba(var(--mdui-color-primary), 0.1);
+}
+
+.emoji-item .material-icons {
+    font-size: 24px;
+}
+
+.emoji-img {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+}
+
+/* 桌面端表情面板样式 */
+@media (min-width: 1024px) {
+    .emoji-panel {
+        position: absolute;
+        bottom: 100%;
+        top: auto;
+        left: 12%;
+        transform: translateX(-50%);
+        width: 320px;
+        border: 1px solid rgb(var(--mdui-color-outline-variant));
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        margin-bottom: 8px;
+    }
 }

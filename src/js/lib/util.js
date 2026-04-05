@@ -2,8 +2,6 @@
 
 import { CORE_CONFIG, USER_LOGIN_TOKEN, $ } from "../core.js";
 
-let openWindow = null;
-
 /**
  * AJAX 请求封装
  * ==========
