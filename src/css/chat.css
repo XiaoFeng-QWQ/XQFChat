@@ -1,4 +1,5 @@
 @import url(./common.css);
+@import url(./keyframes.css);
 
 /* 消息内容容器 */
 .message-content-container {
@@ -68,21 +69,6 @@
 .sent .quote-content {
     background: rgba(255, 255, 255, 0.2);
     border-left-color: white;
-}
-
-/* 目标消息高亮动画 */
-@keyframes highlight-flash {
-    0% {
-        background-color: transparent;
-    }
-
-    30% {
-        background-color: rgb(var(--mdui-color-primary-container));
-    }
-
-    100% {
-        background-color: transparent;
-    }
 }
 
 .msg-highlight {
@@ -599,31 +585,6 @@ mdui-text-field {
     margin-top: 4px;
 }
 
-/* ========== 桌面端特定样式 ========== */
-@media (min-width: 1024px) {
-    body.chat-page .footer-container {
-        display: block;
-    }
-
-    /* 消息行宽度优化 */
-    .message-row {
-        max-width: 60%;
-    }
-
-    .message-row.sent {
-        margin-right: 12px;
-    }
-
-    .message-row.received {
-        margin-left: 12px;
-    }
-
-    /* 顶部应用栏的返回按钮隐藏 */
-    mdui-top-app-bar mdui-button-icon:first-child {
-        display: none;
-    }
-}
-
 /* ========== iframe环境适配样式 ========== */
 body.iframe-chat {
     margin: 0;
@@ -680,25 +641,6 @@ body.iframe-chat .footer-container {
 /* 消息预览样式 */
 #forwardPreviewContent {
     padding: 12px;
-}
-
-/* 响应式调整 */
-@media (max-width: 768px) {
-    #forwardDialog {
-        width: 95%;
-        height: 80vh;
-    }
-
-    #forwardContent {
-        grid-template-columns: 1fr;
-        grid-template-rows: auto 1fr;
-    }
-
-    #forwardContent>div:first-child {
-        border-right: none;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-        max-height: 200px;
-    }
 }
 
 /* 暗色主题适配 */
@@ -855,8 +797,41 @@ body.iframe-chat .footer-container {
     object-fit: contain;
 }
 
-/* 桌面端表情面板样式 */
+.upload-emoji-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(var(--mdui-color-primary), 0.1);
+    border: 2px dashed rgb(var(--mdui-color-outline-variant));
+}
+
+.upload-emoji-item:hover {
+    background-color: rgba(var(--mdui-color-primary), 0.2);
+    border-color: rgb(var(--mdui-color-primary));
+}
+
 @media (min-width: 1024px) {
+    body.chat-page .footer-container {
+        display: block;
+    }
+
+    /* 消息行宽度优化 */
+    .message-row {
+        max-width: 60%;
+    }
+
+    .message-row.sent {
+        margin-right: 12px;
+    }
+
+    .message-row.received {
+        margin-left: 12px;
+    }
+
+    mdui-top-app-bar mdui-button-icon:first-child {
+        display: none;
+    }
+
     .emoji-panel {
         position: absolute;
         bottom: 100%;
@@ -865,8 +840,27 @@ body.iframe-chat .footer-container {
         transform: translateX(-50%);
         width: 320px;
         border: 1px solid rgb(var(--mdui-color-outline-variant));
-        border-radius: 12px;
+        border-top-right-radius: 6px;
+        border-top-left-radius: 6px;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
         margin-bottom: 8px;
+    }
+}
+
+@media (max-width: 768px) {
+    #forwardDialog {
+        width: 95%;
+        height: 80vh;
+    }
+
+    #forwardContent {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+    }
+
+    #forwardContent>div:first-child {
+        border-right: none;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        max-height: 200px;
     }
 }

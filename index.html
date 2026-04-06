@@ -5,10 +5,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>XQFChat</title>
-    <link rel="stylesheet" href="./src/css/common.css">
     <link rel="stylesheet" href="./src/css/index.css">
     <link rel="shortcut icon" href="./unpackage/res/icons/192x192.png" type="image/x-icon">
-    <script src="./src/js/lib/mdui.global.min.js"></script>
     <script type="module" src="./src/js/index.js"></script>
 </head>
 
@@ -32,7 +30,6 @@
     </mdui-navigation-rail>
     <mdui-layout>
         <div class="page-container">
-            <!-- 聊天室列表页面 -->
             <div class="page" id="page-rooms">
                 <div class="rooms-split">
                     <div class="room-list-panel">
@@ -63,14 +60,12 @@
                 </div>
             </div>
 
-            <!-- 创建聊天室页面 -->
             <form class="page" id="page-create">
                 <mdui-text-field name="name" label="聊天室名称" variant="outlined"
                     style="width: 100%; margin-bottom: 16px;"></mdui-text-field>
                 <mdui-text-field name="description" label="聊天室描述" variant="outlined" rows="3"
                     style="width: 100%; margin-bottom: 16px;"></mdui-text-field>
 
-                <!-- 头像上传区域 -->
                 <div style="margin-bottom: 24px;">
                     <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 8px;">
                         <mdui-avatar id="avatar-preview" style="width: 64px; height: 64px;"></mdui-avatar>
@@ -94,7 +89,6 @@
                 </mdui-button>
             </form>
 
-            <!-- 个人信息页面 -->
             <div class="page" id="page-me">
                 <div class="me-split">
                     <div class="me-info-panel">
@@ -110,7 +104,8 @@
                         <mdui-divider></mdui-divider>
                         <mdui-list>
                             <mdui-list-item id="theme-toggle" icon="dark_mode" rounded>更改配色</mdui-list-item>
-                            <mdui-list-item icon="open_in_new" href="https://user.flmp.uk/" rounded>管理我的账户</mdui-list-item>
+                            <mdui-list-item icon="open_in_new" href="https://user.flmp.uk/"
+                                rounded>管理我的账户</mdui-list-item>
                             <mdui-list-item id="settings-link" icon="settings" rounded>设置</mdui-list-item>
                             <mdui-list-item id="bots-link" icon="smart_toy" rounded>Bot管理</mdui-list-item>
                             <mdui-divider></mdui-divider>
@@ -121,7 +116,8 @@
                         <div class="me-settings-placeholder" id="meSettingsPlaceholder">
                             <div style="font-size: 9.5rem; font-weight: 600; margin-bottom: 8px;">🤔</div>
                         </div>
-                        <iframe id="meSettingsIframe" class="me-settings-frame" src="about:blank" frameborder="0"></iframe>
+                        <iframe id="meSettingsIframe" class="me-settings-frame" src="about:blank"
+                            frameborder="0"></iframe>
                     </div>
                 </div>
             </div>
@@ -156,7 +152,6 @@
     <mdui-dialog close-on-overlay-click headline="今日天气" id="weatherDialog">
         <div id="weatherDialogContent">
             <div class="weather-detail-card">
-                <!-- 主要天气信息 -->
                 <div class="weather-main">
                     <div class="weather-city-temp">
                         <div class="weather-city" id="weatherDialogCity">城市</div>
@@ -168,7 +163,6 @@
                     </div>
                 </div>
 
-                <!-- 天气详情网格 -->
                 <div class="weather-details-grid">
                     <div class="weather-detail-item">
                         <mdui-icon>thermostat</mdui-icon>
@@ -197,14 +191,12 @@
                     </div>
                 </div>
 
-                <!-- 生活指数 -->
                 <div class="weather-living-section">
                     <div class="section-title">
                         <mdui-icon>local_florist</mdui-icon>
                         <span>生活指数</span>
                     </div>
                     <div class="living-indices" id="weatherLivingIndices">
-                        <!-- 动态生成的生活指数 -->
                     </div>
                 </div>
             </div>

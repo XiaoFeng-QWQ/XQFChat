@@ -2,10 +2,13 @@
 
 import { CORE_CONFIG, USER_LOGIN_TOKEN, $, ThemeManager } from './core.js';
 import { getFormData, HttpUtil, StorageUtil, progressManager } from './lib/util.js';
+import { weatherWidget } from './lib/widget.js';
 
-// DOM 元素管理
+/**
+ * DOM 元素集合
+ * @type {Object.<string, jQuery>}
+ */
 const elements = {
-    // 主页面元素
     roomList: $('#roomList'),
     bottomNav: $('#bottomNav'),
     logoutBtn: $('#logoutBtn'),
@@ -19,7 +22,6 @@ const elements = {
 
     createRoomBtn: $('#createRoomBtn'),
 
-    // 页面容器
     pages: {
         rooms: $('#page-rooms'),
         create: $('#page-create'),
@@ -27,14 +29,12 @@ const elements = {
         settings: $('#page-settings')
     },
 
-    // "我"
     meAvatar: $('#meAvatar'),
     meNickname: $('#meNickname'),
     meEmail: $('#meEmail'),
     meSettingsIframe: $('#meSettingsIframe'),
     meSettingsPlaceholder: $('#meSettingsPlaceholder'),
 
-    // 设置页面
     settingsLink: $('#settings-link'),
     confirmClearDialog: $('#confirmClearDialog'),
     cancelClear: $('#cancelClear'),
@@ -44,11 +44,8 @@ const elements = {
     closeLicenseDialog: $('#closeLicenseDialog')
 };
 
-// 常量配置
 const LAST_TAB_KEY = 'last_tab';
-const PAGE_TRANSITION_DURATION = 300;
 
-// iframe 缓存状态
 const iframeCache = {
     chat: {
         loaded: false,
@@ -62,7 +59,6 @@ const iframeCache = {
     }
 };
 
-// 下拉刷新状态
 const pullToRefreshState = {
     isDragging: false,
     startY: 0,
@@ -339,12 +335,10 @@ const switchPage = (() => {
         isTransitioning = true;
         progressManager.start();
 
-        // 淡出当前页面
         if ($oldPage && $oldPage.length) {
             await fadeOut($oldPage);
         }
 
-        // 隐藏所有其他页面
         Object.values(elements.pages).forEach($page => {
             if ($page.length && $page[0] !== $newPage[0]) {
                 $page.removeClass('active');
@@ -352,21 +346,17 @@ const switchPage = (() => {
             }
         });
 
-        // 淡入新页面
         await fadeIn($newPage);
         $newPage.addClass('active');
 
         currentPageName = name;
 
-        // 更新侧边栏导航激活状态
         updateSidebarNavActiveState(name);
 
-        // 特殊页面逻辑
         if (name === 'me') {
             loadCurrentUser();
         }
 
-        // 清空全局搜索框
         if (name !== 'rooms') {
             elements.globalSearchInput.val('');
             hideGlobalSearchResults();
@@ -381,7 +371,6 @@ const switchPage = (() => {
     return enhancedSwitch;
 })();
 
-// 房间列表渲染
 const renderRooms = (rooms) => {
     if (!rooms || rooms.length === 0) {
         elements.roomList.html(`
@@ -395,9 +384,31 @@ const renderRooms = (rooms) => {
 
     elements.roomList.html(rooms.map(room => {
         const lastMsg = room.last_message;
-        const lastMessageText = lastMsg?.nickname && lastMsg?.content
-            ? `${lastMsg.nickname}: ${lastMsg.content}`
-            : '暂无消息';
+        let lastMessageText = '暂无消息';
+
+        if (lastMsg?.nickname && lastMsg?.content) {
+            const messageType = lastMsg.type;
+            
+            switch (messageType) {
+                case 'card.forward':
+                    lastMessageText = `${lastMsg.nickname}: [转发消息]`;
+                    break;
+                case 'card.file':
+                    try {
+                        const parsedContent = JSON.parse(lastMsg.content);
+                        lastMessageText = `${lastMsg.nickname}: [文件] ${parsedContent.filename}`;
+                    } catch (e) {
+                        lastMessageText = `${lastMsg.nickname}: [文件]`;
+                    }
+                    break;
+                case 'text':
+                    lastMessageText = `${lastMsg.nickname}: ${lastMsg.content}`;
+                    break;
+                default:
+                    lastMessageText = `${lastMsg.nickname}: [${messageType}]`;
+                    break;
+            }
+        }
 
         const unreadBadge = room.unread_count > 0
             ? `<mdui-badge slot="end-icon" class="unread-badge">${room.unread_count}</mdui-badge>`
@@ -450,7 +461,7 @@ const isDesktopRoomIframe = () => {
 };
 
 /**
- * 打开聊天室 iframe（优化版 - 避免白屏）
+ * 打开聊天室 iframe
  */
 const openRoomInIframe = (roomId) => {
     if (!roomId) return;
@@ -458,9 +469,7 @@ const openRoomInIframe = (roomId) => {
     const $iframe = elements.roomChatIframe;
     const iframeElement = $iframe[0];
 
-    // 如果是同一个房间，不处理
     if (iframeCache.chat.currentRoomId === roomId && iframeCache.chat.loaded) {
-        // 确保 iframe 可见
         $('#roomChatPlaceholder').hide();
         $iframe.show();
 
@@ -474,7 +483,6 @@ const openRoomInIframe = (roomId) => {
     const isIframeLoaded = iframeCache.chat.loaded && iframeElement.src && iframeElement.src.includes('chat.html');
 
     if (!isIframeLoaded) {
-        // 首次加载：设置 src 并等待加载完成
         progressManager.start();
 
         $iframe.off('load').on('load', function () {
@@ -484,7 +492,6 @@ const openRoomInIframe = (roomId) => {
                 progressManager.stop();
             }, 300);
 
-            // 加载完成后发送房间ID
             this.contentWindow.postMessage({
                 type: 'setRoomId',
                 roomId: roomId
@@ -493,12 +500,10 @@ const openRoomInIframe = (roomId) => {
             iframeCache.chat.currentRoomId = roomId;
         });
 
-        $iframe.attr('src', './src/components/chat.html');
+        $iframe.attr('src', './components/chat.html');
     } else {
-        // iframe 已加载，直接发送切换房间的消息，不重新加载
         progressManager.start();
 
-        // 显示加载状态，等待 chat.js 处理完成
         setTimeout(() => {
             progressManager.stop();
         }, 300);
@@ -521,7 +526,7 @@ const openRoomInIframe = (roomId) => {
 };
 
 /**
- * 打开设置页面 iframe（优化版 - 避免白屏）
+ * 打开设置页面 iframe
  */
 const openSettingsInIframe = () => {
     const $iframe = elements.meSettingsIframe;
@@ -535,7 +540,7 @@ const openSettingsInIframe = () => {
             iframeCache.settings.loaded = true;
         });
 
-        $iframe.attr('src', './src/components/settings.html');
+        $iframe.attr('src', './components/settings.html');
     }
     // 如果已加载，直接显示，不需要重新加载
 
@@ -558,7 +563,7 @@ const openBotsInIframe = () => {
             iframeCache.bots.loaded = true;
         });
 
-        $iframe.attr('src', './src/components/bots.html');
+        $iframe.attr('src', './components/bots.html');
     }
     // 如果已加载，直接显示，不需要重新加载
 
@@ -771,7 +776,7 @@ const bindEvents = () => {
 
     $(document).on('click', '#weatherTemp', (event) => {
         event.preventDefault();
-        showWeatherDetails();
+        weatherWidget.showWeatherDetails();
     });
 
     elements.roomList.on('click', (event) => {
@@ -902,11 +907,10 @@ const bindEvents = () => {
     $('#settings-link').on('click', (e) => {
         e.preventDefault();
 
-        // 使用优化后的设置打开方法
         openSettingsInIframe();
 
         if (window.innerWidth >= 1024) {
-            // 桌面端处理
+            // 桌面端不处理
         } else {
             switchPage('me');
             elements.pages.me.addClass('mobile-viewing-settings');
@@ -920,7 +924,7 @@ const bindEvents = () => {
         openBotsInIframe();
 
         if (window.innerWidth >= 1024) {
-            // 桌面端处理
+            // 桌面端不处理
         } else {
             switchPage('me');
             elements.pages.me.addClass('mobile-viewing-settings');
@@ -992,7 +996,7 @@ const init = async () => {
     });
 
     await loadCurrentUser();
-    loadWeather();
+    weatherWidget.loadWeather();
     bindEvents();
     await loadRooms();
 
@@ -1009,107 +1013,7 @@ const init = async () => {
     window.refreshRoomList = () => pullToRefresh.refresh();
 };
 
-let weatherData = null;
 
-const loadWeather = async () => {
-    try {
-        const response = await fetch('https://api.xiaofengqwq.com/api/v1/tools/weather?type=full');
-        const data = await response.json();
-
-        if (data.code === 200 && data.data) {
-            weatherData = data.data;
-            const weather = data.data;
-            $('#weatherLocation').text(weather.city);
-            $('#weatherTemp').text(`${weather.temp}°C`);
-            $('#weatherDesc').text(weather.weather);
-        } else {
-            weatherData = null;
-            $('#weatherLocation').text('获取失败');
-            $('#weatherTemp').text('--°C');
-            $('#weatherDesc').text('天气信息');
-        }
-    } catch (error) {
-        console.error('获取天气信息失败:', error);
-        weatherData = null;
-        $('#weatherLocation').text('获取失败');
-        $('#weatherTemp').text('--°C');
-        $('#weatherDesc').text('天气信息');
-    }
-};
-
-const showWeatherDetails = () => {
-    if (!weatherData) {
-        mdui.alert('暂无天气数据');
-        return;
-    }
-
-    const current = weatherData.current;
-
-    $('#weatherDialogCity').text(weatherData.city);
-    $('#weatherDialogTemp').text(`${weatherData.temp}°C`);
-    $('#weatherDialogCondition').text(weatherData.weather);
-
-    const weatherIcon = getWeatherIcon(weatherData.weather);
-    $('#weatherDialogIcon').text(weatherIcon);
-
-    if (current) {
-        $('#weatherFeelsLike').text(`${current.feels_like}°C`);
-        $('#weatherHumidity').text(`${current.humidity}%`);
-        $('#weatherVisibility').text(`${current.visibility}km`);
-        $('#weatherWindSpeed').text(`${current.wind_speed}km/h`);
-        $('#weatherObsTime').text(current.obs_time || '--');
-    } else {
-        $('#weatherObsTime').text('--');
-    }
-
-    const livingIndices = weatherData.living || [];
-    let livingHtml = '';
-    livingIndices.forEach(item => {
-        const levelColor = getLivingIndexColor(item.level);
-        livingHtml += `
-            <div class="living-index-item">
-                <div>
-                    <div class="living-index-name">${item.name}</div>
-                    <div class="living-index-desc">${item.text}</div>
-                </div>
-                <div class="living-index-value" style="color: ${levelColor}">${item.category}</div>
-            </div>
-        `;
-    });
-    $('#weatherLivingIndices').html(livingHtml);
-
-    $('#weatherDialog')[0].open = true;
-};
-
-const getWeatherIcon = (weather) => {
-    const weatherMap = {
-        '晴': 'wb_sunny',
-        '多云': 'wb_cloudy',
-        '阴': 'cloud',
-        '雨': 'grain',
-        '雪': 'ac_unit',
-        '雾': 'foggy',
-        '霾': 'foggy'
-    };
-
-    for (const [key, icon] of Object.entries(weatherMap)) {
-        if (weather.includes(key)) {
-            return icon;
-        }
-    }
-    return 'wb_sunny';
-};
-
-const getLivingIndexColor = (level) => {
-    const colors = {
-        1: '#4caf50',
-        2: '#ff9800',
-        3: '#2196f3',
-        4: '#f44336',
-        5: '#9c27b0'
-    };
-    return colors[level] || '#666';
-};
 
 $(document).ready(init);
 

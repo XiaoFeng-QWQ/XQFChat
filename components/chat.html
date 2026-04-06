@@ -4,11 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <link rel="shortcut icon" href="./../../unpackage/res/icons/192x192.png" type="image/x-icon">
-    <link rel="stylesheet" href="./../../src/css/chat.css">
-    <script src="./../../src/js/lib/mdui.global.min.js"></script>
-    <script src="./../../src/js/lib/marked.umd.min.js"></script>
-    <script type="module" src="./../../src/js/chat.js"></script>
+    <link rel="stylesheet" href="./../src/css/chat.css">
+    <script type="module" src="./../src/js/chat.js"></script>
 </head>
 
 <body class="chat-page iframe-chat">
@@ -109,12 +106,9 @@
         <main class="list" id="messageList"></main>
 
         <footer class="footer-container">
-            <!-- 表情包面板 -->
             <div id="emojiPanel" class="emoji-panel">
-                <mdui-tabs id="emojiTabs" value="mdui" class="emoji-tabs" full-width>
-                </mdui-tabs>
-                <div class="emoji-panel-content">
-                </div>
+                <div class="emoji-panel-content"></div>
+                <mdui-tabs id="emojiTabs" value="mdui" class="emoji-tabs" full-width></mdui-tabs>
             </div>
             <div id="replyPreview">
                 <div class="reply-text-container">
@@ -135,7 +129,7 @@
         <mdui-menu-item icon="content_copy" data-action="message.copy">复制</mdui-menu-item>
         <mdui-menu-item icon="reply" data-action="message.reply">回复</mdui-menu-item>
         <mdui-menu-item icon="forward" data-action="message.forward">转发</mdui-menu-item>
-        <mdui-menu-item icon="undo" data-action="message.delect">撤回</mdui-menu-item>
+        <mdui-menu-item icon="undo" data-action="message.delete">撤回</mdui-menu-item>
         <mdui-divider></mdui-divider>
         <mdui-menu-item icon="select_all" data-action="message.enter_select_mode">多选</mdui-menu-item>
     </mdui-menu>
@@ -213,14 +207,16 @@
                 <mdui-circular-progress></mdui-circular-progress>
             </div>
             <div id="forwardContent" style="display: none;">
-                <!-- 左侧聊天室列表 -->
                 <div style="border-right: 1px solid rgba(0,0,0,0.1); overflow-y: auto;">
-                    <div style="padding: 12px; font-size: 14px; font-weight: 500; border-bottom: 1px solid rgba(0,0,0,0.1);">选择聊天室</div>
+                    <div
+                        style="padding: 12px; font-size: 14px; font-weight: 500; border-bottom: 1px solid rgba(0,0,0,0.1);">
+                        选择聊天室</div>
                     <div id="forwardRoomList"></div>
                 </div>
-                <!-- 右侧消息列表 -->
                 <div style="overflow-y: auto;">
-                    <div style="padding: 12px; font-size: 14px; font-weight: 500; border-bottom: 1px solid rgba(0,0,0,0.1);">转发内容</div>
+                    <div
+                        style="padding: 12px; font-size: 14px; font-weight: 500; border-bottom: 1px solid rgba(0,0,0,0.1);">
+                        转发内容</div>
                     <div id="forwardPreviewContent" style="padding: 12px;"></div>
                 </div>
             </div>
@@ -230,25 +226,23 @@
             <mdui-button variant="tonal" id="confirmForward">转发</mdui-button>
         </div>
     </mdui-dialog>
-    
-    <!-- 详细转发记录弹窗 -->
+
     <mdui-dialog close-on-overlay-click headline="转发记录" id="forwardDetailDialog" close-on-esc>
         <div id="forwardDetailContent" style="overflow-y: auto;"></div>
         <div slot="action">
             <mdui-button variant="text" id="closeForwardDetail">关闭</mdui-button>
         </div>
     </mdui-dialog>
-    
-    <!-- 嵌套转发记录弹窗 -->
+
     <mdui-dialog close-on-overlay-click headline="嵌套转发记录" id="nestedForwardDialog" close-on-esc>
         <div id="nestedForwardContent" style="overflow-y: auto;"></div>
         <div slot="action">
             <mdui-button variant="text" id="closeNestedForward">关闭</mdui-button>
         </div>
     </mdui-dialog>
-    
-    <!-- 文件管理弹窗 -->
-    <mdui-dialog close-on-overlay-click headline="文件管理" id="fileManagerDialog" close-on-esc style="--mdui-dialog-max-width: 600px;">
+
+    <mdui-dialog close-on-overlay-click headline="文件管理" id="fileManagerDialog" close-on-esc
+        style="--mdui-dialog-max-width: 600px;">
         <div style="margin-bottom: 16px;">
             <div id="fileStats" style="display: flex; gap: 16px; flex-wrap: wrap;"></div>
         </div>
@@ -261,10 +255,9 @@
             <mdui-button variant="tonal" id="refreshFileList">刷新</mdui-button>
         </div>
     </mdui-dialog>
-    
+
     <mdui-fab id="theme-toggle" icon="dark_mode" style="display: none;"></mdui-fab>
 
-    <!-- 多选模式工具栏 -->
     <mdui-bottom-app-bar id="multiSelectToolbar" hide>
         <div style="flex: 1; font-size: 14px; color: rgb(var(--mdui-color-on-surface-variant)); margin-left: 16px;">
             已选择 <span id="selectedCount">0</span> 条消息
@@ -280,7 +273,6 @@
         <mdui-button-icon id="closeSelectModeBtn" icon="close"></mdui-button-icon>
     </mdui-bottom-app-bar>
 
-    <!-- 底部操作栏 -->
     <mdui-bottom-app-bar id="actionBar" hide>
         <mdui-button-icon id="toggleMarkdown" icon="text_format" title="Markdown语法"></mdui-button-icon>
         <mdui-button-icon id="uploadFile" icon="attach_file" title="上传文件"></mdui-button-icon>
@@ -289,11 +281,10 @@
         <mdui-button-icon id="closeActionBar" icon="close"></mdui-button-icon>
     </mdui-bottom-app-bar>
 
-    <!-- 文件上传输入框 -->
     <input type="file" id="fileUploadInput" style="display: none;" accept="*">
-    
-    <!-- 机器人管理对话框 -->
-    <mdui-dialog close-on-overlay-click headline="聊天室机器人" id="roomBotsDialog" close-on-esc style="--mdui-dialog-max-width: 600px;">
+
+    <mdui-dialog close-on-overlay-click headline="聊天室机器人" id="roomBotsDialog" close-on-esc
+        style="--mdui-dialog-max-width: 600px;">
         <div id="roomBotsContent">
             <div id="roomBotsLoading" class="mdui-circular-progress-overlay" style="display: flex;">
                 <mdui-circular-progress></mdui-circular-progress>
@@ -305,9 +296,9 @@
             <mdui-button variant="tonal" id="refreshRoomBots">刷新</mdui-button>
         </div>
     </mdui-dialog>
-    
-    <!-- 安装机器人对话框 -->
-    <mdui-dialog close-on-overlay-click headline="安装机器人" id="installBotDialog" close-on-esc style="--mdui-dialog-max-width: 600px;">
+
+    <mdui-dialog close-on-overlay-click headline="安装机器人" id="installBotDialog" close-on-esc
+        style="--mdui-dialog-max-width: 600px;">
         <div id="installBotContent">
             <div id="marketplaceLoading" class="mdui-circular-progress-overlay" style="display: flex;">
                 <mdui-circular-progress></mdui-circular-progress>
@@ -317,6 +308,20 @@
         <div slot="action">
             <mdui-button variant="text" id="closeInstallBotDialog">取消</mdui-button>
         </div>
+    </mdui-dialog>
+
+    <mdui-dialog close-on-overlay-click headline="确认删除文件" id="deleteFileDialog" close-on-esc>
+        <div>确定要删除这个文件吗？此操作不可撤销。</div>
+        <div slot="action">
+            <mdui-button variant="text" id="cancelDeleteFile">取消</mdui-button>
+            <mdui-button variant="tonal" id="confirmDeleteFile">删除</mdui-button>
+        </div>
+    </mdui-dialog>
+
+    <mdui-dialog id="emojiRenameDialog" headline="修改备注">
+        <mdui-text-field label="新备注" id="emojiNewName"></mdui-text-field>
+        <mdui-button variant="text" id="cancelRename" slot="action">取消</mdui-button>
+        <mdui-button variant="filled" id="confirmRename" slot="action">确定</mdui-button>
     </mdui-dialog>
 </body>
 

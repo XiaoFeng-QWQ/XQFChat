@@ -24,9 +24,7 @@ const HttpUtil = {
      * @returns {Promise} 处理后的响应
      */
     async responseInterceptor(response) {
-        // 检查响应是否为对象且包含 code 属性
         if (response && typeof response === 'object' && 'code' in response) {
-            // 如果返回码是 401，执行登出逻辑
             if (response.code === 401) {
                 await this.handleUnauthorized();
             }
@@ -42,7 +40,6 @@ const HttpUtil = {
             `${CORE_CONFIG.USER_API}/auth/logout`,
             { headers: { 'Authorization': `Bearer ${USER_LOGIN_TOKEN}` } }
         );
-        StorageUtil.removeItem(CORE_CONFIG.STORAGE_KEYS.USER_INFO);
         window.location = 'login.html';
     },
 
@@ -82,7 +79,6 @@ const HttpUtil = {
             result = await response.text();
         }
 
-        // 应用响应拦截器
         return this.responseInterceptor(result);
     },
 
@@ -100,7 +96,6 @@ const HttpUtil = {
         try {
             const fullUrl = mergedConfig.baseURL ? `${mergedConfig.baseURL}${url}` : url;
 
-            // 准备请求选项
             const requestOptions = {
                 method: mergedConfig.method || 'GET',
                 headers: mergedConfig.headers,
@@ -118,7 +113,6 @@ const HttpUtil = {
 
             // 处理请求体：只有非 GET/HEAD 请求才可能有 body
             if (mergedConfig.body && requestOptions.method !== 'GET' && requestOptions.method !== 'HEAD') {
-                // 检查 Content-Type 是否为 application/json
                 const contentType = requestOptions.headers['Content-Type'] || requestOptions.headers['content-type'];
                 if (contentType && contentType.includes('application/json')) {
                     requestOptions.body = JSON.stringify(mergedConfig.body);
@@ -273,7 +267,6 @@ const StorageUtil = {
 
             const storageItem = JSON.parse(itemStr);
 
-            // 检查是否过期
             if (storageItem.expire && Date.now() > storageItem.expire) {
                 this.removeItem(key);
                 return defaultValue;
@@ -382,31 +375,34 @@ const StorageUtil = {
  * IndexedDB 存储封装（异步，适用于大量数据）
  * =====================================
  * 提供类似 localStorage 的异步接口，底层使用 IndexedDB。
- * 默认数据库名为 'AppDB'，对象存储名为 'keyvalue'。
+ * 默认数据库名为 'XQFChat'，对象存储名为 'chatData'。
  */
 const IndexedDBUtil = {
-    DB_NAME: 'AppDB',
-    STORE_NAME: 'keyvalue',
+    DB_NAME: 'XQFChat',
+    DEFAULT_STORE_NAME: 'chatData',
     VERSION: 1,
-    db: null,
+    dbs: new Map(),
 
     /**
      * 打开数据库连接（内部自动调用）
+     * @param {string} storeName 存储名称
      * @returns {Promise<IDBDatabase>}
      */
-    async openDB() {
-        if (this.db) return this.db;
+    async openDB(storeName = this.DEFAULT_STORE_NAME) {
+        const dbKey = `${this.DB_NAME}_${storeName}`;
+        if (this.dbs.has(dbKey)) return this.dbs.get(dbKey);
+
         return new Promise((resolve, reject) => {
             const request = indexedDB.open(this.DB_NAME, this.VERSION);
             request.onerror = () => reject(request.error);
             request.onsuccess = () => {
-                this.db = request.result;
-                resolve(this.db);
+                this.dbs.set(dbKey, request.result);
+                resolve(request.result);
             };
             request.onupgradeneeded = (event) => {
                 const db = event.target.result;
-                if (!db.objectStoreNames.contains(this.STORE_NAME)) {
-                    db.createObjectStore(this.STORE_NAME); // 键值存储，使用 keyPath 自动为键
+                if (!db.objectStoreNames.contains(storeName)) {
+                    db.createObjectStore(storeName);
                 }
             };
         });
@@ -415,22 +411,24 @@ const IndexedDBUtil = {
     /**
      * 获取事务和对象存储
      * @param {string} mode 事务模式 'readonly' 或 'readwrite'
+     * @param {string} storeName 存储名称
      * @returns {Promise<IDBObjectStore>}
      */
-    async getStore(mode = 'readonly') {
-        const db = await this.openDB();
-        const transaction = db.transaction([this.STORE_NAME], mode);
-        return transaction.objectStore(this.STORE_NAME);
+    async getStore(mode = 'readonly', storeName = this.DEFAULT_STORE_NAME) {
+        const db = await this.openDB(storeName);
+        const transaction = db.transaction([storeName], mode);
+        return transaction.objectStore(storeName);
     },
 
     /**
      * 设置键值对
      * @param {string} key
      * @param {any} value 必须是结构化可克隆的数据
+     * @param {string} storeName 存储名称
      * @returns {Promise<void>}
      */
-    async setItem(key, value) {
-        const store = await this.getStore('readwrite');
+    async setItem(key, value, storeName = this.DEFAULT_STORE_NAME) {
+        const store = await this.getStore('readwrite', storeName);
         return new Promise((resolve, reject) => {
             const request = store.put(value, key);
             request.onsuccess = () => resolve();
@@ -442,10 +440,11 @@ const IndexedDBUtil = {
      * 获取键对应的值
      * @param {string} key
      * @param {any} defaultValue 如果键不存在则返回的默认值
+     * @param {string} storeName 存储名称
      * @returns {Promise<any>}
      */
-    async getItem(key, defaultValue = null) {
-        const store = await this.getStore('readonly');
+    async getItem(key, defaultValue = null, storeName = this.DEFAULT_STORE_NAME) {
+        const store = await this.getStore('readonly', storeName);
         return new Promise((resolve) => {
             const request = store.get(key);
             request.onsuccess = () => resolve(request.result !== undefined ? request.result : defaultValue);
@@ -456,10 +455,11 @@ const IndexedDBUtil = {
     /**
      * 移除键值对
      * @param {string} key
+     * @param {string} storeName 存储名称
      * @returns {Promise<void>}
      */
-    async removeItem(key) {
-        const store = await this.getStore('readwrite');
+    async removeItem(key, storeName = this.DEFAULT_STORE_NAME) {
+        const store = await this.getStore('readwrite', storeName);
         return new Promise((resolve, reject) => {
             const request = store.delete(key);
             request.onsuccess = () => resolve();
@@ -469,10 +469,11 @@ const IndexedDBUtil = {
 
     /**
      * 清空所有键值对
+     * @param {string} storeName 存储名称
      * @returns {Promise<void>}
      */
-    async clear() {
-        const store = await this.getStore('readwrite');
+    async clear(storeName = this.DEFAULT_STORE_NAME) {
+        const store = await this.getStore('readwrite', storeName);
         return new Promise((resolve, reject) => {
             const request = store.clear();
             request.onsuccess = () => resolve();
@@ -482,10 +483,11 @@ const IndexedDBUtil = {
 
     /**
      * 获取所有键名
+     * @param {string} storeName 存储名称
      * @returns {Promise<string[]>}
      */
-    async keys() {
-        const store = await this.getStore('readonly');
+    async keys(storeName = this.DEFAULT_STORE_NAME) {
+        const store = await this.getStore('readonly', storeName);
         return new Promise((resolve, reject) => {
             const request = store.getAllKeys();
             request.onsuccess = () => resolve(request.result);
@@ -496,20 +498,22 @@ const IndexedDBUtil = {
     /**
      * 检查键是否存在
      * @param {string} key
+     * @param {string} storeName 存储名称
      * @returns {Promise<boolean>}
      */
-    async hasItem(key) {
-        const value = await this.getItem(key);
+    async hasItem(key, storeName = this.DEFAULT_STORE_NAME) {
+        const value = await this.getItem(key, null, storeName);
         return value !== null;
     },
 
     /**
      * 批量设置多个键值对
      * @param {Object} items 键值对对象
+     * @param {string} storeName 存储名称
      * @returns {Promise<void>}
      */
-    async setMany(items) {
-        const store = await this.getStore('readwrite');
+    async setMany(items, storeName = this.DEFAULT_STORE_NAME) {
+        const store = await this.getStore('readwrite', storeName);
         return new Promise((resolve, reject) => {
             const transaction = store.transaction;
             transaction.oncomplete = () => resolve();
@@ -524,10 +528,11 @@ const IndexedDBUtil = {
     /**
      * 批量获取多个键的值
      * @param {string[]} keys
+     * @param {string} storeName 存储名称
      * @returns {Promise<Object>} 键值对对象，不存在的键不会出现在结果中
      */
-    async getMany(keys) {
-        const store = await this.getStore('readonly');
+    async getMany(keys, storeName = this.DEFAULT_STORE_NAME) {
+        const store = await this.getStore('readonly', storeName);
         const results = {};
         await Promise.all(keys.map(key =>
             new Promise((resolve) => {
@@ -540,6 +545,28 @@ const IndexedDBUtil = {
             })
         ));
         return results;
+    },
+
+    /**
+     * 关闭数据库连接
+     * @param {string} storeName 存储名称
+     */
+    close(storeName = this.DEFAULT_STORE_NAME) {
+        const dbKey = `${this.DB_NAME}_${storeName}`;
+        if (this.dbs.has(dbKey)) {
+            this.dbs.get(dbKey).close();
+            this.dbs.delete(dbKey);
+        }
+    },
+
+    /**
+     * 关闭所有数据库连接
+     */
+    closeAll() {
+        for (const db of this.dbs.values()) {
+            db.close();
+        }
+        this.dbs.clear();
     }
 };
 
@@ -589,13 +616,10 @@ const formatTime = (timestamp, options = {}) => {
 
     // 处理不同的返回格式
     if (typeof options === 'string') {
-        // 如果传入字符串，直接返回对应格式
         return result[options] || result.fullDateTime;
     } else if (options.returnString) {
-        // 兼容旧版：如果returnString为true，返回默认格式的字符串
         return result.fullDateTime;
     } else if (options.format) {
-        // 如果指定了format，返回对应格式的字符串
         return result[options.format] || result.fullDateTime;
     }
 
@@ -712,4 +736,23 @@ const progressManager = {
     }
 };
 
-export { HttpUtil, StorageUtil, formatTime, getFormData, IndexedDBUtil, formatBytes, progressManager };
+/**
+ * 判断当前页面是否在 iframe 中
+ * ==========================
+ * 通过比较 window.self 和 window.top 来判断是否在 iframe 中
+ * @returns {boolean} 是否在 iframe 中
+ */
+const isInIframe = () => {
+    return window.self !== window.top;
+};
+
+export {
+    HttpUtil,
+    StorageUtil,
+    IndexedDBUtil,
+    progressManager,
+    formatBytes,
+    formatTime,
+    getFormData,
+    isInIframe
+};

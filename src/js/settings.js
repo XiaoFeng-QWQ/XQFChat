@@ -2,22 +2,20 @@
 
 import { USER_LOGIN_TOKEN, $ } from './core.js';
 import { StorageUtil, IndexedDBUtil, progressManager } from './lib/util.js';
-
-// 从 mdui 全局对象中获取函数
 const { setColorScheme, getColorFromImage } = mdui;
 
-// DOM 元素引用
+/**
+ * DOM 元素集合
+ * @type {Object.<string, jQuery>}
+ */
 const elements = {
-    // 返回按钮（仅在手机端 iframe 中出现）
     settingsBack: $('#settings-back'),
 
-    // 预设配色
     colorPresets: $('.color-preset'),
     customColorPicker: $('#customColorPicker'),
     customColorHex: $('#customColorHex'),
     applyCustomColor: $('#applyCustomColor'),
 
-    // 壁纸提取颜色
     wallpaperFile: $('#wallpaperFile'),
     selectWallpaperBtn: $('#selectWallpaperBtn'),
     extractedColorPreview: $('#extractedColorPreview'),
@@ -25,7 +23,6 @@ const elements = {
     extractedColorValue: $('.extracted-color-value'),
     applyExtractedColor: $('#applyExtractedColor'),
 
-    // 聊天背景
     chatBgPreview: $('#chatBgPreview'),
     bgTypeRadios: $('[name="bgType"]'),
     bgColorPicker: $('#bgColorPicker'),
@@ -39,12 +36,10 @@ const elements = {
     applyBgSettings: $('#applyBgSettings'),
     resetBgSettings: $('#resetBgSettings'),
 
-    // 背景选项容器
     bgColorInput: $('.bg-color-input'),
     bgImageInput: $('.bg-image-input'),
     bgBlurInput: $('.bg-blur-input'),
 
-    // 本地消息管理
     totalMessagesSize: $('#totalMessagesSize'),
     currentRoomMessagesSize: $('#currentRoomMessagesSize'),
     totalMessagesCount: $('#totalMessagesCount'),
@@ -353,8 +348,8 @@ const calculateStorageUsage = async () => {
 
     try {
         // 获取当前房间的消息和事件
-        const messages = await IndexedDBUtil.getItem(getMessageStorageKey(state.currentRoomId), []);
-        const events = await IndexedDBUtil.getItem(getEventStorageKey(state.currentRoomId), []);
+        const messages = await IndexedDBUtil.getItem(getMessageStorageKey(state.currentRoomId), [], 'chatData');
+        const events = await IndexedDBUtil.getItem(getEventStorageKey(state.currentRoomId), [], 'chatData');
 
         const messagesStr = JSON.stringify(messages);
         const eventsStr = JSON.stringify(events);
@@ -671,8 +666,8 @@ const bindEvents = () => {
         elements.confirmClear.off('click').on('click', async () => {
             try {
                 // 使用正确的存储键名删除
-                await IndexedDBUtil.removeItem(getMessageStorageKey(state.currentRoomId));
-                await IndexedDBUtil.removeItem(getEventStorageKey(state.currentRoomId));
+                await IndexedDBUtil.removeItem(getMessageStorageKey(state.currentRoomId), 'chatData');
+                await IndexedDBUtil.removeItem(getEventStorageKey(state.currentRoomId), 'chatData');
                 elements.confirmClearDialog.prop('open', false);
                 await calculateStorageUsage(); // 重新计算
                 mdui.snackbar({ message: '已清空当前聊天室消息记录' });
@@ -697,8 +692,8 @@ const bindEvents = () => {
         }
 
         try {
-            const messages = await IndexedDBUtil.getItem(getMessageStorageKey(state.currentRoomId), []);
-            const events = await IndexedDBUtil.getItem(getEventStorageKey(state.currentRoomId), []);
+            const messages = await IndexedDBUtil.getItem(getMessageStorageKey(state.currentRoomId), [], 'chatData');
+            const events = await IndexedDBUtil.getItem(getEventStorageKey(state.currentRoomId), [], 'chatData');
 
             const exportData = {
                 roomId: state.currentRoomId,

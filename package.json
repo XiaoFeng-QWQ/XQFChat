@@ -1,0 +1,15 @@
+{
+  "name": "xqfchat",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "terser": "^5.46.1",
+    "vite": "^8.0.4"
+  }
+}

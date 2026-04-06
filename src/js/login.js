@@ -3,31 +3,43 @@
 import { CORE_CONFIG, $ } from './core.js';
 import { getFormData, HttpUtil, StorageUtil } from './lib/util.js';
 
-const $username = $('#email');
-const $password = $('#password');
-const $loginBtn = $('#loginBtn');
-const $loading = $('#loading');
-const $emailVerifyVode = $('#emailVerifyVode');
-const $captcha = $('#captcha');
-const $captchaInput = $('#captchaInput');
-const $form = $('#form'); // 获取表单元素
-let $captchaToken = null
+/**
+ * DOM 元素缓存
+ * @type {Object.<string, jQuery>}
+ */
+const elements = {
+    username: $('#email'),
+    password: $('#password'),
+    loginBtn: $('#loginBtn'),
+    loading: $('#loading'),
+    emailVerifyVode: $('#emailVerifyVode'),
+    captcha: $('#captcha'),
+    captchaInput: $('#captchaInput'),
+    form: $('#form')
+};
+
+/**
+ * 验证码令牌
+ * @type {string|null}
+ */
+let captchaToken = null;
 
 /**
  * 刷新验证码
+ * @returns {Promise<void>}
  */
-async function refreshCaptcha() {
+const refreshCaptcha = async () => {
     try {
         // 添加时间戳防止缓存
         const response = await HttpUtil.get(`${CORE_CONFIG.USER_API}/auth/captcha?t=${Date.now()}`);
 
         if (response && response.data) {
-            $captchaToken = response.data.captcha_token;
-            $captcha.attr('src', response.data.captcha_image);
+            captchaToken = response.data.captcha_token;
+            elements.captcha.attr('src', response.data.captcha_image);
 
             // 可选：清空验证码输入框
-            if ($captchaInput.length) {
-                $captchaInput.val('');
+            if (elements.captchaInput.length) {
+                elements.captchaInput.val('');
             }
 
             console.debug('验证码刷新成功');
@@ -38,43 +50,14 @@ async function refreshCaptcha() {
         console.error('刷新验证码出错：', error);
         mdui.snackbar({ message: '验证码刷新失败，请稍后重试' });
     }
-}
+};
 
-$(document).ready(async () => {
-    try {
-        const response = await HttpUtil.get(`${CORE_CONFIG.USER_API}/auth/captcha`);
-
-        if (response && response.data) {
-            $captchaToken = response.data.captcha_token;
-            $captcha.attr('src', response.data.captcha_image);
-        } else {
-            console.error('获取验证码失败：响应数据无效', response);
-        }
-    } catch (error) {
-        console.error('获取验证码出错：', error);
-    }
-
-    // 绑定验证码点击刷新事件
-    $captcha.on('click', refreshCaptcha);
-
-    // 绑定回车键刷新（当验证码输入框获得焦点时按回车）
-    $captchaInput.on('keypress', (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            refreshCaptcha();
-        }
-    });
-
-    // 监听表单提交事件
-    $form.on('submit', async (e) => {
-        e.preventDefault();
-        await handleLogin();
-    });
-});
-
-// 提取登录/注册处理函数
-async function handleLogin() {
-    $loading.css('display', 'flex');
+/**
+ * 处理登录/注册
+ * @returns {Promise<void>}
+ */
+const handleLogin = async () => {
+    elements.loading.css('display', 'flex');
 
     try {
         const pendingRegister = StorageUtil.getItem('pending_register');
@@ -82,7 +65,7 @@ async function handleLogin() {
         /**
          * ===== 完成注册流程 =====
          */
-        if ($emailVerifyVode.val()) {
+        if (elements.emailVerifyVode.val()) {
             if (!pendingRegister) {
                 mdui.snackbar({ message: '注册状态已失效，请重新登录' });
                 return;
@@ -91,10 +74,10 @@ async function handleLogin() {
             const result = await HttpUtil.post(
                 `${CORE_CONFIG.USER_API}/auth/complete-register`,
                 {
-                    ...getFormData($('#form')[0]),
+                    ...getFormData(elements.form[0]),
                     verify_token: pendingRegister.verify_token,
-                    captcha_token: $captchaToken,
-                    captcha_code: $captchaInput.val()
+                    captcha_token: captchaToken,
+                    captcha_code: elements.captchaInput.val()
                 },
                 {
                     headers: {
@@ -132,7 +115,7 @@ async function handleLogin() {
         /**
          * ===== 登录流程 =====
          */
-        if (!$username.val() || !$password.val()) {
+        if (!elements.username.val() || !elements.password.val()) {
             mdui.snackbar({ message: '请输入邮箱和密码' });
             return;
         }
@@ -140,12 +123,12 @@ async function handleLogin() {
         const result = await HttpUtil.post(
             `${CORE_CONFIG.USER_API}/auth/auth`,
             {
-                ...getFormData($('#form')[0]),
+                ...getFormData(elements.form[0]),
                 device_id: 'web',
                 device_name: navigator.userAgent,
                 app_version: 'web-1.0.0',
-                captcha_token: $captchaToken,
-                captcha_code: $captchaInput.val()
+                captcha_token: captchaToken,
+                captcha_code: elements.captchaInput.val()
             },
             {
                 headers: {
@@ -177,7 +160,7 @@ async function handleLogin() {
                 verify_token: data.verify_token
             });
 
-            $emailVerifyVode.css('display', 'block');
+            elements.emailVerifyVode.css('display', 'block');
             mdui.snackbar({ message: result.message || '验证码已发送' });
 
             // 注册成功后可以刷新验证码
@@ -193,8 +176,47 @@ async function handleLogin() {
         }
 
     } finally {
-        $loading.css('display', 'none');
+        elements.loading.css('display', 'none');
     }
-}
+};
 
-$loginBtn.on('click', handleLogin);
+/**
+ * 初始化页面
+ * @returns {Promise<void>}
+ */
+const init = async () => {
+    try {
+        const response = await HttpUtil.get(`${CORE_CONFIG.USER_API}/auth/captcha`);
+
+        if (response && response.data) {
+            captchaToken = response.data.captcha_token;
+            elements.captcha.attr('src', response.data.captcha_image);
+        } else {
+            console.error('获取验证码失败：响应数据无效', response);
+        }
+    } catch (error) {
+        console.error('获取验证码出错：', error);
+    }
+
+    // 绑定验证码点击刷新事件
+    elements.captcha.on('click', refreshCaptcha);
+
+    // 绑定回车键刷新（当验证码输入框获得焦点时按回车）
+    elements.captchaInput.on('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            refreshCaptcha();
+        }
+    });
+
+    // 监听表单提交事件
+    elements.form.on('submit', async (e) => {
+        e.preventDefault();
+        await handleLogin();
+    });
+
+    // 绑定登录按钮点击事件
+    elements.loginBtn.on('click', handleLogin);
+};
+
+$(document).ready(init);

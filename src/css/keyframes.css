@@ -1,0 +1,66 @@
+/* 消息高亮 */
+@keyframes highlight-flash {
+    0% {
+        background-color: transparent;
+    }
+
+    30% {
+        background-color: rgb(var(--mdui-color-primary-container));
+    }
+
+    100% {
+        background-color: transparent;
+    }
+}
+
+/* 滑出动画 - 向右 */
+@keyframes slideOutRight {
+    0% {
+        transform: translateX(0);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateX(30%);
+        opacity: 0;
+    }
+}
+
+/* 滑入动画 - 从右侧进入 */
+@keyframes slideInRight {
+    0% {
+        transform: translateX(30%);
+        opacity: 0;
+    }
+
+    100% {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* 滑入动画 - 从左侧进入 */
+@keyframes slideInLeft {
+    0% {
+        transform: translateX(-30%);
+        opacity: 0;
+    }
+
+    100% {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* 滑出动画 - 向左 */
+@keyframes slideOutLeft {
+    0% {
+        transform: translateX(0);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateX(-30%);
+        opacity: 0;
+    }
+}

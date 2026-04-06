@@ -1,24 +1,13 @@
 "use strict";
 
-import { CORE_CONFIG, USER_LOGIN_TOKEN, $, emojiList } from './core.js';
-import { HttpUtil, StorageUtil, formatTime, IndexedDBUtil, progressManager } from './lib/util.js';
+import { CORE_CONFIG, USER_LOGIN_TOKEN, $ } from './core.js';
+import { emojiWidget } from './lib/widget.js';
+import { HttpUtil, StorageUtil, formatTime, IndexedDBUtil, progressManager, isInIframe } from './lib/util.js';
 
-// 检测是否在iframe环境中
-const isInIframe = () => {
-    return window.self !== window.top;
-};
-
-// 通知父窗口切换房间
-const notifyParentToSwitchRoom = (roomId) => {
-    if (isInIframe() && window.parent) {
-        window.parent.postMessage({
-            type: 'switchRoom',
-            roomId: roomId
-        }, '*');
-    }
-};
-
-// DOM 元素引用（保持不变）
+/**
+ * DOM 元素集合
+ * @type {Object.<string, jQuery>}
+ */
 const elements = {
     messageList: $('#messageList'),
     chatInput: $('#chatInput'),
@@ -31,14 +20,11 @@ const elements = {
     navigationDrawertoggle: $('#navigationDrawertoggle'),
     mobileBackBtn: $('#mobileBackBtn'),
     navigationDrawer: $('#navigationDrawer'),
-    chatRoomList: $('#chatRoomList'),
-    chatRoomListEmpty: $('#chatRoomListEmpty'),
     sidebarRoomAvatar: $('#sidebarRoomAvatar'),
     sidebarRoomName: $('#sidebarRoomName'),
     sidebarRoomOnline: $('#sidebarRoomOnline'),
     sidebarBackBtn: $('#sidebarBackBtn'),
     sidebarRoomInfoBtn: $('#sidebarRoomInfoBtn'),
-    refreshRoomListBtn: $('#refreshRoomListBtn'),
     leaveRoom: $('#leaveRoom'),
     confirmLeaveRoomDialog: $('#confirmLeaveRoomDialog'),
     cancelConfirmLeaveRoom: $('#cancelConfirmLeaveRoom'),
@@ -82,7 +68,6 @@ const elements = {
         updateBtn: $('#updateRoomBtn')
     },
 
-    // 转发相关元素
     forwardDialog: $('#forwardDialog'),
     forwardLoading: $('#forwardLoading'),
     forwardContent: $('#forwardContent'),
@@ -99,14 +84,12 @@ const elements = {
     nestedForwardContent: $('#nestedForwardContent'),
     closeNestedForward: $('#closeNestedForward'),
 
-    // 多选模式相关元素
     multiSelectToolbar: $('#multiSelectToolbar'),
     selectedCount: $('#selectedCount'),
     forwardSingleBtn: $('#forwardSingleBtn'),
     forwardMergedBtn: $('#forwardMergedBtn'),
     closeSelectModeBtn: $('#closeSelectModeBtn'),
 
-    // 新增功能元素
     addBtn: $('#addBtn'),
     actionBar: $('#actionBar'),
     toggleMarkdown: $('#toggleMarkdown'),
@@ -117,39 +100,44 @@ const elements = {
     emojiPanel: $('#emojiPanel'),
     emojiTabs: $('#emojiTabs'),
     fileUploadInput: $('#fileUploadInput'),
-    
-    // 文件管理元素
+
     fileManagerDialog: $('#fileManagerDialog'),
     fileStats: $('#fileStats'),
     fileListContainer: $('#fileListContainer'),
     fileManagerLoading: $('#fileManagerLoading'),
     closeFileManager: $('#closeFileManager'),
     refreshFileList: $('#refreshFileList'),
-    
-    // 机器人管理元素
+
     manageRoomBots: $('#manageRoomBots'),
     roomBotsDialog: $('#roomBotsDialog'),
     roomBotsLoading: $('#roomBotsLoading'),
     roomBotsList: $('#roomBotsList'),
     closeRoomBotsDialog: $('#closeRoomBotsDialog'),
     refreshRoomBots: $('#refreshRoomBots'),
-    
+
     installBotDialog: $('#installBotDialog'),
     marketplaceLoading: $('#marketplaceLoading'),
     marketplaceBotsList: $('#marketplaceBotsList'),
-    closeInstallBotDialog: $('#closeInstallBotDialog')
+    closeInstallBotDialog: $('#closeInstallBotDialog'),
+
+    deleteFileDialog: $('#deleteFileDialog'),
+    cancelDeleteFile: $('#cancelDeleteFile'),
+    confirmDeleteFile: $('#confirmDeleteFile')
 };
 
-// 配置常量
+/**
+ * 应用配置常量
+ * @type {Object}
+ */
 const CONFIG = {
-    COMPACT_TIME_LIMIT: 60000, // 紧凑消息时间限制(毫秒)
-    HIGHLIGHT_DURATION: 1500,  // 高亮动画持续时间
-    TIME_BAR_GAP_MINUTES: 30,   // 时间条间隔时间（分钟）
+    COMPACT_TIME_LIMIT: 60000,
+    HIGHLIGHT_DURATION: 1500,
+    TIME_BAR_GAP_MINUTES: 30,
     ME_USER_ID: StorageUtil.getItem(CORE_CONFIG.STORAGE_KEYS.USER_INFO)?.id || null,
-    SCROLL_THRESHOLD: 100, // 距离底部的阈值（像素），小于此值视为在底部
-    POLL_INTERVAL: 1000, // 轮询间隔（毫秒）
-    POLL_LIMIT: 50, // 每次轮询获取的消息数量限制
-    LOCAL_STORAGE_KEY_PREFIX: 'chat_room_', // 本地存储键前缀
+    SCROLL_THRESHOLD: 100,
+    POLL_INTERVAL: 1000,
+    POLL_LIMIT: 50,
+    LOCAL_STORAGE_KEY_PREFIX: 'chat_room_',
     STORAGE_KEYS: {
         CHAT_BG: 'chat_background',
         CHAT_BG_TYPE: 'chat_bg_type',
@@ -160,34 +148,54 @@ const CONFIG = {
     }
 };
 
-// 状态管理
+/**
+ * 应用状态管理
+ * @type {Object}
+ */
 const state = {
     lastSenderId: null,
     lastMsgTime: 0,
     activeMsgRow: null,
-    replyingTo: null, // 存储被回复的消息对象
-    forwardingMessage: null, // 存储要转发的消息对象
-    selectedMessages: new Set(), // 存储选中的消息ID
-    selectedMessagesForForward: [], // 存储要转发的选中消息ID
-    selectedTargetRoomId: null, // 存储选中的目标聊天室ID
-    isSelectMode: false, // 是否处于多选模式
-    timelineItems: [], // 存储所有时间线项目（消息+事件）
-    isUserScrolled: false, // 用户是否手动滚动
-    scrollCheckTimer: null, // 滚动检查定时器
+    replyingTo: null,
+    forwardingMessage: null,
+    selectedMessages: new Set(),
+    selectedMessagesForForward: [],
+    selectedTargetRoomId: null,
+    isSelectMode: false,
+    timelineItems: [],
+    isUserScrolled: false,
+    scrollCheckTimer: null,
     currentRoomInfo: [],
-    pollTimer: null, // 轮询定时器
-    lastMessageId: 0, // 最后一条消息的ID，用于轮询
-    isPolling: false, // 是否正在轮询中
-    itemIds: new Set(), // 存储已存在的时间线项目ID，用于去重
-    lastItemTime: 0, // 上一条时间线项目的时间戳
-    lastEventId: 0, // 最后一条事件的ID
-    nestedForwardStack: [], // 嵌套转发数据堆栈
-    isMarkdownEnabled: false, // 是否启用 Markdown
-    currentEmojiTab: 'mdui' // 当前表情标签
+    pollTimer: null,
+    lastMessageId: 0,
+    isPolling: false,
+    itemIds: new Set(),
+    lastItemTime: 0,
+    lastEventId: 0,
+    nestedForwardStack: [],
+    isMarkdownEnabled: false,
+    currentEmojiTab: 'mdui',
+    currentDeletingFileId: null
+};
+
+/**
+ * 通知父窗口切换房间（如果在iframe中）
+ * @param {string|number|null} roomId - 房间ID，传null表示返回房间列表
+ * @returns {void}
+ */
+const notifyParentToSwitchRoom = (roomId) => {
+    if (isInIframe() && window.parent) {
+        window.parent.postMessage({
+            type: 'switchRoom',
+            roomId: roomId
+        }, '*');
+    }
 };
 
 /**
  * 转义HTML特殊字符
+ * @param {string} str - 需要转义的字符串
+ * @returns {string} 转义后的字符串
  */
 const escapeHTML = (str) => {
     return String(str)
@@ -198,7 +206,10 @@ const escapeHTML = (str) => {
         .replace(/'/g, '&#039;');
 };
 
-// 消息类型定义
+/**
+ * 消息类型常量
+ * @enum {string}
+ */
 const MESSAGE_TYPES = {
     TEXT: 'text',
     MARKDOWN: 'markdown',
@@ -207,7 +218,10 @@ const MESSAGE_TYPES = {
     CARD_FORWARD: 'card.forward'
 };
 
-// 事件类型定义
+/**
+ * 事件类型常量
+ * @enum {string}
+ */
 const EVENT_TYPES = {
     USER_JOIN: 'user.join',
     USER_LEAVE: 'user.leave',
@@ -217,18 +231,25 @@ const EVENT_TYPES = {
     ROOM_UPDATE: 'room.update'
 };
 
-// 时间线项目类型定义
+/**
+ * 时间线项目类型常量
+ * @enum {string}
+ */
 const ITEM_TYPES = {
     MESSAGE: 'message',
     EVENT: 'event'
 };
 
-// 背景设置管理
+/**
+ * 聊天背景设置管理对象
+ * @type {Object}
+ */
 const bgSettings = {
     current: null,
 
     /**
      * 加载保存的背景设置
+     * @returns {Promise<Object>} 背景设置对象
      */
     async load() {
         const saved = StorageUtil.getItem(CONFIG.STORAGE_KEYS.CHAT_BG, {
@@ -243,7 +264,8 @@ const bgSettings = {
     },
 
     /**
-     * 应用背景设置到消息列表
+     * 应用当前背景设置到消息列表
+     * @returns {void}
      */
     apply() {
         if (!this.current) return;
@@ -251,7 +273,6 @@ const bgSettings = {
         const $messageList = elements.messageList;
         const settings = this.current;
 
-        // 重置样式
         $messageList.css({
             'background-color': '',
             'background-image': '',
@@ -263,7 +284,6 @@ const bgSettings = {
 
         switch (settings.type) {
             case 'default':
-                // 使用主题默认背景
                 const isDark = $('html').hasClass('mdui-theme-dark');
                 $messageList.css('background-color', isDark ? '#1e1e1e' : '#f5f5f5');
                 break;
@@ -291,7 +311,6 @@ const bgSettings = {
                 break;
 
             case 'blur':
-                // 模糊效果通常需要结合其他背景使用
                 if (settings.image) {
                     $messageList.css({
                         'background-image': `url(${settings.image})`,
@@ -308,9 +327,9 @@ const bgSettings = {
 
     /**
      * 监听背景设置变化
+     * @returns {void}
      */
     watch() {
-        // 监听 storage 事件，当其他标签页修改设置时同步
         window.addEventListener('storage', (e) => {
             if (e.key === CONFIG.STORAGE_KEYS.CHAT_BG) {
                 this.load().then(() => this.apply());
@@ -321,7 +340,7 @@ const bgSettings = {
 
 /**
  * 获取当前房间的消息存储键
- * @returns {string}
+ * @returns {string} 存储键名
  */
 const getMessageStorageKey = () => {
     return `${CONFIG.LOCAL_STORAGE_KEY_PREFIX}${state.currentRoomInfo.id}_messages`;
@@ -329,7 +348,7 @@ const getMessageStorageKey = () => {
 
 /**
  * 获取当前房间的事件存储键
- * @returns {string}
+ * @returns {string} 存储键名
  */
 const getEventStorageKey = () => {
     return `${CONFIG.LOCAL_STORAGE_KEY_PREFIX}${state.currentRoomInfo.id}_events`;
@@ -339,15 +358,15 @@ const getEventStorageKey = () => {
  * 从 IndexedDB 加载当前房间的本地消息和事件
  * 合并后填充到 state.timelineItems 和 state.itemIds，并更新 lastMessageId
  * 同时渲染到界面
+ * @returns {Promise<void>}
  */
 const loadLocalMessages = async () => {
     const messageKey = getMessageStorageKey();
     const eventKey = getEventStorageKey();
 
-    // 并行获取消息和事件
     const [storedMessages, storedEvents] = await Promise.all([
-        IndexedDBUtil.getItem(messageKey),
-        IndexedDBUtil.getItem(eventKey)
+        IndexedDBUtil.getItem(messageKey, null, 'chatData'),
+        IndexedDBUtil.getItem(eventKey, null, 'chatData')
     ]);
 
     const messages = (storedMessages?.items || []).map(msg => ({
@@ -360,17 +379,14 @@ const loadLocalMessages = async () => {
         type: ITEM_TYPES.EVENT
     }));
 
-    // 合并并按时间戳排序
     const items = [...messages, ...events].sort((a, b) => a.timestamp - b.timestamp);
 
     if (items.length === 0) return;
 
-    // 清空当前状态
     state.timelineItems = [];
     state.itemIds.clear();
     state.lastMessageId = 0;
 
-    // 逐个添加到状态和 ID 集合
     items.forEach(item => {
         state.timelineItems.push(item);
         const uniqueId = `${item.type}-${item.id}`;
@@ -385,7 +401,6 @@ const loadLocalMessages = async () => {
 
     appendTimelineItems(items, { autoScroll: false });
 
-    // 更新最后一条消息的时间，用于后续紧凑布局
     const lastItem = items[items.length - 1];
     if (lastItem.type === ITEM_TYPES.MESSAGE) {
         state.lastSenderId = lastItem.user_id;
@@ -398,15 +413,14 @@ const loadLocalMessages = async () => {
 /**
  * 将一批时间线项目分别保存到 IndexedDB（消息和事件分开存储）
  * @param {Array} items - 新项目数组
+ * @returns {Promise<void>}
  */
 const saveItemsToLocal = async (items) => {
     if (!state.currentRoomInfo?.id || items.length === 0) return;
 
-    // 分离消息和事件
     const newMessages = items.filter(item => item.type === ITEM_TYPES.MESSAGE);
     const newEvents = items.filter(item => item.type === ITEM_TYPES.EVENT);
 
-    // 并行处理消息和事件
     await Promise.all([
         saveMessagesToLocal(newMessages),
         saveEventsToLocal(newEvents)
@@ -416,15 +430,15 @@ const saveItemsToLocal = async (items) => {
 /**
  * 保存消息到本地
  * @param {Array} newMessages - 新消息数组
+ * @returns {Promise<void>}
  */
 const saveMessagesToLocal = async (newMessages) => {
     if (newMessages.length === 0) return;
 
     const messageKey = getMessageStorageKey();
-    const stored = await IndexedDBUtil.getItem(messageKey, { items: [] });
+    const stored = await IndexedDBUtil.getItem(messageKey, { items: [] }, 'chatData');
     const existingMessages = stored.items;
 
-    // 合并去重
     const messageMap = new Map();
     existingMessages.forEach(msg => {
         messageMap.set(msg.id, msg);
@@ -435,25 +449,24 @@ const saveMessagesToLocal = async (newMessages) => {
         }
     });
 
-    // 转换回数组并按时间戳排序
     const mergedMessages = Array.from(messageMap.values())
         .sort((a, b) => a.timestamp - b.timestamp);
 
-    await IndexedDBUtil.setItem(messageKey, { items: mergedMessages });
+    await IndexedDBUtil.setItem(messageKey, { items: mergedMessages }, 'chatData');
 };
 
 /**
  * 保存事件到本地
  * @param {Array} newEvents - 新事件数组
+ * @returns {Promise<void>}
  */
 const saveEventsToLocal = async (newEvents) => {
     if (newEvents.length === 0) return;
 
     const eventKey = getEventStorageKey();
-    const stored = await IndexedDBUtil.getItem(eventKey, { items: [] });
+    const stored = await IndexedDBUtil.getItem(eventKey, { items: [] }, 'chatData');
     const existingEvents = stored.items;
 
-    // 合并去重
     const eventMap = new Map();
     existingEvents.forEach(evt => {
         eventMap.set(evt.id, evt);
@@ -464,54 +477,48 @@ const saveEventsToLocal = async (newEvents) => {
         }
     });
 
-    // 转换回数组并按时间戳排序
     const mergedEvents = Array.from(eventMap.values())
         .sort((a, b) => a.timestamp - b.timestamp);
 
-    await IndexedDBUtil.setItem(eventKey, { items: mergedEvents });
+    await IndexedDBUtil.setItem(eventKey, { items: mergedEvents }, 'chatData');
 };
 
 /**
  * 从本地存储中删除指定消息
- * @param {number} messageId
+ * @param {number} messageId - 消息ID
+ * @returns {Promise<void>}
  */
 const deleteMessageFromLocal = async (messageId) => {
     const messageKey = getMessageStorageKey();
-    const stored = await IndexedDBUtil.getItem(messageKey, { items: [] });
+    const stored = await IndexedDBUtil.getItem(messageKey, { items: [] }, 'chatData');
     const filtered = stored.items.filter(msg => msg.id != messageId);
-    await IndexedDBUtil.setItem(messageKey, { items: filtered });
+    await IndexedDBUtil.setItem(messageKey, { items: filtered }, 'chatData');
 };
 
 /**
  * 从本地完全删除一条消息（不发送HTTP请求）
  * @param {number} messageId - 消息ID
+ * @returns {Promise<void>}
  */
 const deleteMessageLocally = async (messageId) => {
-    // 查找消息元素
     const $messageElement = findMessageById(messageId);
-    // 查找时间线项目索引
     const itemIndex = state.timelineItems.findIndex(item =>
         item.type === ITEM_TYPES.MESSAGE && item.id == messageId
     );
 
     if ($messageElement.length && itemIndex !== -1) {
-        // 从DOM移除
         $messageElement.remove();
 
-        // 从时间线数组移除
         state.timelineItems.splice(itemIndex, 1);
 
-        // 从ID集合移除
         const uniqueId = `${ITEM_TYPES.MESSAGE}-${messageId}`;
         state.itemIds.delete(uniqueId);
 
-        // 更新 lastMessageId（如果删除的是最后一条）
         const messages = state.timelineItems.filter(item => item.type === ITEM_TYPES.MESSAGE);
         if (messageId == state.lastMessageId) {
             state.lastMessageId = messages.length > 0 ? Math.max(...messages.map(msg => msg.id)) : 0;
         }
 
-        // 从本地存储删除消息
         await deleteMessageFromLocal(messageId);
     }
 };
@@ -526,7 +533,6 @@ const isUserAtBottom = () => {
     const scrollHeight = $messageList[0].scrollHeight;
     const clientHeight = $messageList[0].clientHeight;
 
-    // 计算距离底部的距离
     const distanceToBottom = scrollHeight - scrollTop - clientHeight;
     return distanceToBottom <= CONFIG.SCROLL_THRESHOLD;
 };
@@ -534,6 +540,7 @@ const isUserAtBottom = () => {
 /**
  * 滚动到底部
  * @param {boolean} animated - 是否使用动画
+ * @returns {void}
  */
 const scrollToBottom = (animated = true) => {
     const $messageList = elements.messageList;
@@ -542,7 +549,6 @@ const scrollToBottom = (animated = true) => {
     if (animated) {
         $messageList.animate({ scrollTop: scrollHeight }, 300);
     } else {
-        // 临时禁用 CSS 平滑滚动
         const originalBehavior = container.style.scrollBehavior;
         container.style.scrollBehavior = 'auto';
         container.scrollTop = scrollHeight;
@@ -554,12 +560,12 @@ const scrollToBottom = (animated = true) => {
 /**
  * 检查是否需要自动滚动
  * 条件：用户没有手动滚动或用户已经在底部
+ * @returns {void}
  */
 const checkAutoScroll = () => {
-    // 如果用户没有手动滚动，或者用户在底部附近，则自动滚动
     if (!state.isUserScrolled || isUserAtBottom()) {
         requestAnimationFrame(() => {
-            scrollToBottom();
+            scrollToBottom(false);
         });
     }
 };
@@ -585,7 +591,7 @@ const generateEventElementId = (eventId) => {
 /**
  * 查找包含指定消息ID的元素
  * @param {number} messageId - 后端消息ID
- * @returns {jQuery | null} 找到的元素或null
+ * @returns {jQuery|null} 找到的元素或null
  */
 const findMessageById = (messageId) => {
     const elementId = generateMessageElementId(messageId);
@@ -595,6 +601,7 @@ const findMessageById = (messageId) => {
 /**
  * 滚动到指定消息并高亮显示
  * @param {number} messageId - 后端消息ID
+ * @returns {void}
  */
 const scrollToMessage = (messageId) => {
     const $targetElement = findMessageById(messageId);
@@ -604,7 +611,6 @@ const scrollToMessage = (messageId) => {
         return;
     }
 
-    // 平滑滚动到消息位置
     const container = elements.messageList[0];
     const targetTop = $targetElement[0].offsetTop - container.clientHeight / 2 + $targetElement[0].clientHeight / 2;
 
@@ -612,10 +618,8 @@ const scrollToMessage = (messageId) => {
         scrollTop: targetTop
     }, 300);
 
-    // 添加高亮效果
     $targetElement.addClass('msg-highlight');
 
-    // 动画结束后移除高亮类
     setTimeout(() => {
         $targetElement.removeClass('msg-highlight');
     }, CONFIG.HIGHLIGHT_DURATION);
@@ -628,7 +632,7 @@ const scrollToMessage = (messageId) => {
  * @returns {boolean} 是否需要显示时间条
  */
 const shouldShowTimeBar = (prevTimestamp, currentTimestamp) => {
-    if (!prevTimestamp) return true; // 第一条消息显示时间条
+    if (!prevTimestamp) return true;
 
     const timeDiffMinutes = (currentTimestamp - prevTimestamp) / 60;
     return timeDiffMinutes >= CONFIG.TIME_BAR_GAP_MINUTES;
@@ -637,6 +641,9 @@ const shouldShowTimeBar = (prevTimestamp, currentTimestamp) => {
 /**
  * 创建时间条HTML
  * @param {Object} timeInfo - 时间信息
+ * @param {string} timeInfo.date - 日期字符串
+ * @param {string} timeInfo.time - 时间字符串
+ * @param {number} timeInfo.timestamp - 时间戳
  * @returns {string} 时间条HTML
  */
 const createTimeBarHTML = (timeInfo) => {
@@ -652,6 +659,7 @@ const createTimeBarHTML = (timeInfo) => {
 /**
  * 添加时间条到消息列表
  * @param {Object} timeInfo - 时间信息
+ * @returns {void}
  */
 const appendTimeBar = (timeInfo) => {
     const $timeBarElement = $(createTimeBarHTML(timeInfo));
@@ -661,6 +669,11 @@ const appendTimeBar = (timeInfo) => {
 /**
  * 处理文件卡片消息
  * @param {Object} fileData - 文件数据
+ * @param {string} fileData.filename - 文件名
+ * @param {number} fileData.file_size - 文件大小（字节）
+ * @param {string} fileData.file_type - 文件类型
+ * @param {string} fileData.mime_type - MIME类型
+ * @param {string} fileData.download_url - 下载链接
  * @returns {string} 文件卡片HTML
  */
 const createFileCardHTML = (fileData) => {
@@ -691,6 +704,8 @@ const createFileCardHTML = (fileData) => {
 /**
  * 处理转发卡片消息
  * @param {Object} forwardData - 转发数据
+ * @param {Array} forwardData.messages - 消息数组
+ * @param {number} forwardData.count - 消息数量
  * @returns {string} 转发卡片HTML
  */
 const createForwardCardHTML = (forwardData) => {
@@ -717,7 +732,6 @@ const createForwardCardHTML = (forwardData) => {
                 contentHTML = '[不支持的消息类型]';
         }
 
-        // 只显示前3条消息
         if (index < 3) {
             messagesHTML += `
             <div class="forward-message-item">
@@ -727,7 +741,6 @@ const createForwardCardHTML = (forwardData) => {
         }
     });
 
-    // 如果超过3条消息，显示"点击查看更多"
     if (count > 3) {
         messagesHTML += `
         <div class="forward-message-more" style="cursor: pointer;">
@@ -735,7 +748,6 @@ const createForwardCardHTML = (forwardData) => {
         </div>`;
     }
 
-    // 将 forwardData 保存为 data 属性，用于点击事件
     return `
     <div class="forward-card" style="cursor: pointer;" data-forward-data='${escapeHTML(JSON.stringify(forwardData))}'>
         <div class="forward-card-header">
@@ -750,6 +762,7 @@ const createForwardCardHTML = (forwardData) => {
 /**
  * 打开详细转发记录弹窗
  * @param {Object} forwardData - 转发数据
+ * @returns {void}
  */
 const openNestedForwardDialog = (forwardData) => {
     if (!forwardData || !forwardData.messages || forwardData.messages.length === 0) {
@@ -761,19 +774,14 @@ const openNestedForwardDialog = (forwardData) => {
 
     let contentHTML = '';
     messages.forEach((msg) => {
-        // 处理消息内容，支持嵌套转发
         const messageContent = renderForwardMessageContent(msg, 0);
 
-        // 格式化时间
         let timeText = '';
         if (msg.created_at) {
-            // 检查是秒级时间戳还是毫秒级时间戳
             let timestamp = msg.created_at;
-            // 如果是毫秒级时间戳，转换为秒级
             if (timestamp > 10000000000) {
                 timestamp = Math.floor(timestamp / 1000);
             }
-            // 使用formatTime函数来格式化时间
             timeText = formatTime(timestamp, { format: 'fullDateTime' });
         }
 
@@ -796,22 +804,18 @@ const openNestedForwardDialog = (forwardData) => {
 
     elements.nestedForwardContent.html(contentHTML);
     elements.nestedForwardDialog.prop('open', true);
-    
-    // 绑定嵌套转发消息的点击事件
-    elements.nestedForwardContent.find('.nested-forward-card').off('click').on('click', function(event) {
+
+    elements.nestedForwardContent.find('.nested-forward-card').off('click').on('click', function (event) {
         event.stopPropagation();
         const nestedData = $(this).attr('data-nested-data');
         if (nestedData) {
             try {
                 const data = JSON.parse(nestedData);
-                // 将当前转发数据推入堆栈
                 state.nestedForwardStack.push(forwardData);
-                // 关闭当前弹窗
                 elements.nestedForwardDialog.prop('open', false);
-                // 打开新的弹窗
                 setTimeout(() => {
                     openNestedForwardDialog(data);
-                }, 300); // 等待动画完成
+                }, 300);
             } catch (e) {
                 console.error('解析嵌套转发数据失败:', e);
             }
@@ -821,15 +825,17 @@ const openNestedForwardDialog = (forwardData) => {
 
 /**
  * 处理消息内容，支持嵌套转发（点击打开新弹窗）
+ * @param {Object} msg - 消息对象
+ * @param {number} depth - 嵌套深度
+ * @returns {string} 渲染后的HTML内容
  */
 const renderForwardMessageContent = (msg, depth = 0) => {
-    // 防止无限递归，最多嵌套10层
     if (depth > 10) {
         return '<div style="color: rgb(var(--mdui-color-on-surface-variant)); font-style: italic;">嵌套转发过多，无法显示</div>';
     }
-    
+
     let messageContent = '';
-    
+
     switch (msg.message_type) {
         case MESSAGE_TYPES.TEXT:
         case MESSAGE_TYPES.MARKDOWN:
@@ -840,7 +846,6 @@ const renderForwardMessageContent = (msg, depth = 0) => {
             messageContent = `[文件] ${fileData.filename || '未命名文件'}`;
             break;
         case MESSAGE_TYPES.CARD_FORWARD:
-            // 处理嵌套的转发消息，使用可点击的卡片样式
             let nestedData = msg.content;
             if (typeof nestedData === 'string') {
                 try {
@@ -849,13 +854,11 @@ const renderForwardMessageContent = (msg, depth = 0) => {
                     nestedData = null;
                 }
             }
-            
+
             if (nestedData && nestedData.messages && nestedData.messages.length > 0) {
                 const nestedCount = nestedData.count || nestedData.messages.length;
-                
-                // 将嵌套数据保存为 data 属性
                 const escapedData = escapeHTML(JSON.stringify(nestedData));
-                
+
                 messageContent = `
                 <div class="nested-forward-card" style="padding: 12px; border: 1px solid rgba(0,0,0,0.1); border-radius: 8px; cursor: pointer; background: rgba(var(--mdui-color-primary), 0.05); transition: background-color 0.2s;" data-nested-data='${escapedData}'>
                     <div style="display: flex; align-items: center; gap: 8px;">
@@ -873,10 +876,15 @@ const renderForwardMessageContent = (msg, depth = 0) => {
         default:
             messageContent = '[不支持的消息类型]';
     }
-    
+
     return messageContent;
 };
 
+/**
+ * 打开转发详情对话框
+ * @param {Object} forwardData - 转发数据
+ * @returns {void}
+ */
 const openForwardDetailDialog = (forwardData) => {
     if (!forwardData || !forwardData.messages || forwardData.messages.length === 0) {
         return;
@@ -887,19 +895,14 @@ const openForwardDetailDialog = (forwardData) => {
 
     let contentHTML = '';
     messages.forEach((msg) => {
-        // 处理消息内容，支持嵌套转发
         const messageContent = renderForwardMessageContent(msg, 0);
 
-        // 格式化时间
         let timeText = '';
         if (msg.created_at) {
-            // 检查是秒级时间戳还是毫秒级时间戳
             let timestamp = msg.created_at;
-            // 如果是毫秒级时间戳，转换为秒级
             if (timestamp > 10000000000) {
                 timestamp = Math.floor(timestamp / 1000);
             }
-            // 使用formatTime函数来格式化时间
             timeText = formatTime(timestamp, { format: 'fullDateTime' });
         }
 
@@ -922,9 +925,8 @@ const openForwardDetailDialog = (forwardData) => {
 
     elements.forwardDetailContent.html(contentHTML);
     elements.forwardDetailDialog.prop('open', true);
-    
-    // 绑定嵌套转发卡片的点击事件
-    elements.forwardDetailContent.find('.nested-forward-card').off('click').on('click', function(event) {
+
+    elements.forwardDetailContent.find('.nested-forward-card').off('click').on('click', function (event) {
         event.stopPropagation();
         const nestedData = $(this).attr('data-nested-data');
         if (nestedData) {
@@ -948,7 +950,6 @@ const createMessageBubbleHTML = (message) => {
     if (message_type === MESSAGE_TYPES.DELETED) return;
     let messageHTML = '';
 
-    // 处理引用
     let quoteHTML = '';
     if (reply_to) {
         const repliedMessage = state.timelineItems.find(item =>
@@ -967,14 +968,12 @@ const createMessageBubbleHTML = (message) => {
         }
     }
 
-    // 根据消息类型处理内容
     switch (message_type) {
         case MESSAGE_TYPES.TEXT:
             messageHTML = `<div class="text-body">${parseEmojiInMessage(content)}</div>`;
             break;
 
         case MESSAGE_TYPES.MARKDOWN:
-            // 对于 Markdown，先解析表情再解析 Markdown
             const parsedContent = parseEmojiInMessage(content || '');
             messageHTML = `<div class="text-body markdown-content mdui-prose">${marked.parse(parsedContent)}</div>`;
             break;
@@ -1008,7 +1007,6 @@ const createEventMessageHTML = (event) => {
 
     if (event_type === EVENT_TYPES.ROOM_UPDATE) return;
 
-    // 根据事件类型生成显示文本
     const getEventDisplayText = () => {
         switch (event_type) {
             case EVENT_TYPES.MESSAGE_DELETE:
@@ -1040,6 +1038,7 @@ const createEventMessageHTML = (event) => {
  * 处理消息右键菜单
  * @param {jQuery} $messageRow - 消息行元素
  * @param {Event} event - 事件对象
+ * @returns {void}
  */
 const handleMessageContextMenu = ($messageRow, event) => {
     event.preventDefault();
@@ -1050,8 +1049,7 @@ const handleMessageContextMenu = ($messageRow, event) => {
 
     state.activeMsgRow = $messageRow;
 
-    // 根据发送者显示/隐藏撤回选项
-    const $deleteOption = elements.msgMenu.find('[data-action="message.delect"]');
+    const $deleteOption = elements.msgMenu.find('[data-action="message.delete"]');
     const messageId = $messageRow.attr('data-msg-id');
     const originalId = messageId.replace('msg-', '');
     const message = state.timelineItems.find(item =>
@@ -1066,28 +1064,23 @@ const handleMessageContextMenu = ($messageRow, event) => {
         $deleteOption.css('display', 'none');
     }
 
-    // 定位菜单，确保在屏幕可见区域内
     const menuWidth = 150;
     const menuHeight = 360;
-    
-    // 计算菜单位置，确保不超出屏幕
+
     let menuLeft = clientX;
     let menuTop = clientY;
-    
-    // 调整水平位置
+
     if (menuLeft + menuWidth > window.innerWidth) {
         menuLeft = window.innerWidth - menuWidth;
     }
-    
-    // 调整垂直位置
+
     if (menuTop + menuHeight > window.innerHeight) {
         menuTop = window.innerHeight - menuHeight;
     }
-    
-    // 确保位置不小于0
+
     menuLeft = Math.max(0, menuLeft);
     menuTop = Math.max(0, menuTop);
-    
+
     elements.msgMenu.css({
         display: 'block',
         position: 'fixed',
@@ -1100,9 +1093,9 @@ const handleMessageContextMenu = ($messageRow, event) => {
  * 为消息元素绑定事件监听器
  * @param {jQuery} $messageRow - 消息行元素
  * @param {Object} message - 消息对象
+ * @returns {void}
  */
 const bindMessageEvents = ($messageRow, message) => {
-    // 引用点击事件
     const $quoteElement = $messageRow.find('.quote-content');
     if ($quoteElement.length && message.reply_to) {
         $quoteElement.on('click', (event) => {
@@ -1111,14 +1104,11 @@ const bindMessageEvents = ($messageRow, message) => {
         });
     }
 
-    // 消息点击事件，用于切换选中状态
     $messageRow.on('click', (event) => {
-        // 如果点击的是引用内容，不处理选中状态
         if ($(event.target).closest('.quote-content').length) {
             return;
         }
 
-        // 如果点击的是转发卡片，打开详细弹窗
         const $forwardCard = $(event.target).closest('.forward-card');
         if ($forwardCard.length && !state.isSelectMode) {
             event.stopPropagation();
@@ -1134,9 +1124,7 @@ const bindMessageEvents = ($messageRow, message) => {
             return;
         }
 
-        // 只有在多选模式下才处理选中状态
         if (state.isSelectMode) {
-            // 切换选中状态
             if (state.selectedMessages.has(message.id)) {
                 state.selectedMessages.delete(message.id);
                 $messageRow.removeClass('selected');
@@ -1145,12 +1133,10 @@ const bindMessageEvents = ($messageRow, message) => {
                 $messageRow.addClass('selected');
             }
 
-            // 更新选中计数
             updateSelectedCount();
         }
     });
 
-    // 右键菜单事件
     const $bubbleElement = $messageRow.find('.message-bubble');
     if ($bubbleElement.length) {
         $bubbleElement.on('contextmenu', (event) => {
@@ -1158,7 +1144,6 @@ const bindMessageEvents = ($messageRow, message) => {
         });
     }
 
-    // 双击消息快速回复
     $bubbleElement.on('dblclick', (event) => {
         event.stopPropagation();
         if (message.message_type !== MESSAGE_TYPES.DELETED) {
@@ -1171,7 +1156,8 @@ const bindMessageEvents = ($messageRow, message) => {
 
 /**
  * 更新回复预览
- * @param {Object} message - 被回复的消息对象
+ * @param {Object|null} message - 被回复的消息对象，传null隐藏预览
+ * @returns {void}
  */
 const updateReplyPreview = (message) => {
     if (!message) {
@@ -1182,7 +1168,6 @@ const updateReplyPreview = (message) => {
     const isMe = message.user_id === CONFIG.ME_USER_ID;
     const senderName = isMe ? '我' : (message.nickname || '对方');
 
-    // 根据消息类型获取预览内容
     let previewContent = '';
     switch (message.message_type) {
         case MESSAGE_TYPES.TEXT:
@@ -1200,7 +1185,6 @@ const updateReplyPreview = (message) => {
             previewContent = '[不支持的消息类型]';
     }
 
-    // 截断过长的预览内容
     if (previewContent.length > 50) {
         previewContent = previewContent.substring(0, 47) + '...';
     }
@@ -1231,14 +1215,12 @@ const filterDuplicateItems = (messages, events) => {
     const uniqueMessages = [];
     const uniqueEvents = [];
 
-    // 过滤重复消息
     messages.forEach(message => {
         if (!isItemExists(message.id, ITEM_TYPES.MESSAGE)) {
             uniqueMessages.push(message);
         }
     });
 
-    // 过滤重复事件
     events.forEach(event => {
         if (!isItemExists(event.id, ITEM_TYPES.EVENT)) {
             uniqueEvents.push(event);
@@ -1255,12 +1237,12 @@ const filterDuplicateItems = (messages, events) => {
  * 为消息或事件添加唯一ID到集合
  * @param {Object} item - 消息或事件对象
  * @param {string} type - 项目类型
+ * @returns {void}
  */
 const addItemToIdSet = (item, type) => {
     const uniqueId = `${type}-${item.id}`;
     state.itemIds.add(uniqueId);
 
-    // 如果是消息，更新最后一条消息ID
     if (type === ITEM_TYPES.MESSAGE && item.id > state.lastMessageId) {
         state.lastMessageId = item.id;
     }
@@ -1295,45 +1277,39 @@ const convertEventToTimelineItem = (event) => {
 /**
  * 添加消息到时间线
  * @param {Object} message - 消息对象
+ * @returns {number} 消息的时间戳
  */
 const appendMessageToTimeline = (message) => {
     const { id, user_id, created_at, nickname, avatar_url, message_type } = message;
-    const currentTime = created_at * 1000; // 转换为毫秒
+    const currentTime = created_at * 1000;
     const isMe = user_id === CONFIG.ME_USER_ID;
     const elementId = generateMessageElementId(id);
     const displayName = isMe ? '我' : nickname;
 
-    // 如果是删除的消息，不添加到DOM中，但仍然添加到时间线项目
     if (message_type === MESSAGE_TYPES.DELETED) {
-        // 但仍然更新状态和ID集合
         const item = convertMessageToTimelineItem(message);
         state.timelineItems.push(item);
         addItemToIdSet(message, ITEM_TYPES.MESSAGE);
         return created_at;
     }
 
-    // 判断是否为紧凑布局
     const isCompact = (user_id === state.lastSenderId) &&
         (currentTime - state.lastMsgTime < CONFIG.COMPACT_TIME_LIMIT);
 
-    // 创建消息行元素
     const isSelected = state.selectedMessages.has(message.id);
     const $messageRow = $('<div>')
         .attr('data-msg-id', elementId)
         .attr('data-message-id', message.id)
         .addClass(`message-row ${isMe ? 'sent' : 'received'} ${isCompact ? 'compact' : ''} ${isSelected ? 'selected' : ''}`);
 
-    // 头像或占位符
     const avatarHTML = !isCompact ?
         `<mdui-avatar src="${avatar_url}"></mdui-avatar>` :
         '<div class="avatar-spacer"></div>';
 
-    // 只有在非紧凑模式下才显示昵称
     const nicknameHTML = !isCompact ?
         `<div class="message-nickname">${displayName}</div>` :
         '';
 
-    // 设置消息内容
     $messageRow.html(`
         ${avatarHTML}
         <div class="message-content-container">
@@ -1342,17 +1318,13 @@ const appendMessageToTimeline = (message) => {
         </div>
     `);
 
-    // 绑定事件
     bindMessageEvents($messageRow, message);
 
-    // 添加到列表
     elements.messageList.append($messageRow);
 
-    // 更新状态
     state.lastSenderId = user_id;
     state.lastMsgTime = currentTime;
 
-    // 添加到时间线项目和ID集合
     const item = convertMessageToTimelineItem(message);
     state.timelineItems.push(item);
     addItemToIdSet(message, ITEM_TYPES.MESSAGE);
@@ -1363,6 +1335,7 @@ const appendMessageToTimeline = (message) => {
 /**
  * 添加事件到时间线
  * @param {Object} event - 事件对象
+ * @returns {number} 事件的时间戳
  */
 const appendEventToTimeline = (event) => {
     const { created_at } = event;
@@ -1371,7 +1344,6 @@ const appendEventToTimeline = (event) => {
 
     elements.messageList.append($eventElement);
 
-    // 添加到时间线项目和ID集合
     const item = convertEventToTimelineItem(event);
     state.timelineItems.push(item);
     addItemToIdSet(event, ITEM_TYPES.EVENT);
@@ -1384,13 +1356,13 @@ const appendEventToTimeline = (event) => {
  * @param {Array} items - 时间线项目数组
  * @param {Object} options - 附加选项
  * @param {boolean} options.autoScroll - 是否在批量追加后检查自动滚动
+ * @returns {void}
  */
 const appendTimelineItems = (items, options = {}) => {
     const { autoScroll = true } = options;
     let lastTimestamp = state.lastItemTime;
 
     items.forEach(item => {
-        // 判断是否需要显示时间条
         if (shouldShowTimeBar(lastTimestamp, item.timestamp)) {
             const timeInfo = formatTime(item.timestamp);
             appendTimeBar(timeInfo);
@@ -1405,7 +1377,6 @@ const appendTimelineItems = (items, options = {}) => {
 
     state.lastItemTime = lastTimestamp;
 
-    // 保存到 IndexedDB（异步，不阻塞）- 消息和事件分开存储
     saveItemsToLocal(items).catch(err => console.error('保存消息到 IndexedDB 失败:', err));
 
     if (autoScroll && items.length > 0) {
@@ -1418,13 +1389,12 @@ const appendTimelineItems = (items, options = {}) => {
 /**
  * 处理消息删除
  * @param {number} messageId - 被删除的消息ID
+ * @returns {Promise<void>}
  */
 const handleMessageDelete = async (messageId) => {
     try {
-        // 先执行本地删除
         await deleteMessageLocally(messageId);
 
-        // 再发送HTTP请求通知服务器
         await HttpUtil.post(
             `${CORE_CONFIG.API_URL}/chat/delete`,
             {
@@ -1447,7 +1417,7 @@ const handleMessageDelete = async (messageId) => {
 /**
  * 获取消息元素对应的消息对象
  * @param {jQuery} $messageElement - 消息元素
- * @returns {Object | null} 消息对象
+ * @returns {Object|null} 消息对象
  */
 const getMessageFromElement = ($messageElement) => {
     const messageId = $messageElement.attr('data-msg-id');
@@ -1462,6 +1432,7 @@ const getMessageFromElement = ($messageElement) => {
 /**
  * 处理菜单项点击
  * @param {Event} event - 点击事件
+ * @returns {void}
  */
 const handleMenuAction = (event) => {
     const $menuItem = $(event.target).closest('mdui-menu-item');
@@ -1474,9 +1445,7 @@ const handleMenuAction = (event) => {
 
     switch (action) {
         case 'message.reply':
-            // 存储完整的消息对象
             state.replyingTo = message;
-            // 更新回复预览
             updateReplyPreview(message);
             elements.chatInput.trigger('focus');
             break;
@@ -1498,21 +1467,18 @@ const handleMenuAction = (event) => {
                 });
             break;
 
-        case 'message.delect':
+        case 'message.delete':
             if (message.user_id === CONFIG.ME_USER_ID && message.message_type !== MESSAGE_TYPES.DELETED) {
                 handleMessageDelete(message.id);
             }
             break;
 
         case 'message.forward':
-            // 存储要转发的消息
             state.forwardingMessage = message;
-            // 打开转发对话框
             openForwardDialog();
             break;
 
         case 'message.enter_select_mode':
-            // 进入多选模式
             enterSelectMode();
             break;
     }
@@ -1522,6 +1488,7 @@ const handleMenuAction = (event) => {
 
 /**
  * 取消回复
+ * @returns {void}
  */
 const cancelReply = () => {
     state.replyingTo = null;
@@ -1531,21 +1498,19 @@ const cancelReply = () => {
 
 /**
  * 打开转发对话框
+ * @returns {Promise<void>}
  */
 const openForwardDialog = async () => {
     const message = state.forwardingMessage;
     if (!message) return;
 
-    // 清空之前的选中状态
     state.selectedMessagesForForward = [];
 
-    // 显示对话框和加载状态
     elements.forwardDialog.prop('open', true);
     elements.forwardLoading.show();
     elements.forwardContent.hide();
 
     try {
-        // 加载用户的聊天室列表
         const result = await HttpUtil.get(`${CORE_CONFIG.API_URL}/rooms/my`, {}, {
             headers: {
                 'Content-Type': 'application/json',
@@ -1555,12 +1520,10 @@ const openForwardDialog = async () => {
 
         const rooms = result.data?.rooms || [];
 
-        // 填充聊天室列表
         const roomList = elements.forwardContent.find('#forwardRoomList');
         roomList.empty();
 
         rooms.forEach(room => {
-            // 排除当前聊天室
             if (room.id !== state.currentRoomInfo.id) {
                 const roomItem = $(`
                     <div class="forward-room-item" data-room-id="${room.id}" style="padding: 12px; cursor: pointer; border-bottom: 1px solid rgba(0,0,0,0.05); transition: background-color 0.2s;">
@@ -1576,13 +1539,9 @@ const openForwardDialog = async () => {
                     </div>
                 `);
 
-                // 添加点击事件
-                roomItem.on('click', function() {
-                    // 移除其他房间的选中状态
+                roomItem.on('click', function () {
                     roomList.find('.forward-room-item').removeClass('selected');
-                    // 添加当前房间的选中状态
                     $(this).addClass('selected');
-                    // 存储选中的目标聊天室ID
                     state.selectedTargetRoomId = parseInt($(this).attr('data-room-id'));
                 });
 
@@ -1590,7 +1549,6 @@ const openForwardDialog = async () => {
             }
         });
 
-        // 填充转发预览
         let previewContent = '';
         switch (message.message_type) {
             case MESSAGE_TYPES.TEXT:
@@ -1616,11 +1574,9 @@ const openForwardDialog = async () => {
             </div>
         `);
 
-        // 显示内容，隐藏加载
         elements.forwardLoading.hide();
         elements.forwardContent.show();
-        
-        // 重置选中的目标聊天室ID
+
         state.selectedTargetRoomId = null;
 
     } catch (error) {
@@ -1632,29 +1588,30 @@ const openForwardDialog = async () => {
 
 /**
  * 处理消息转发
+ * @returns {Promise<void>}
  */
 const handleForwardMessage = async () => {
     const message = state.forwardingMessage;
     const selectedMessageIds = state.selectedMessagesForForward;
-    
-    // 检查是否有消息要转发
+
     if (!message && selectedMessageIds.length === 0) {
         mdui.snackbar({ message: '没有要转发的消息' });
         return;
     }
-    
+
     const targetRoomId = state.selectedTargetRoomId;
-    
+
     if (!targetRoomId) {
         mdui.snackbar({ message: '请选择目标聊天室' });
         return;
     }
-    
+
+    const $btn = elements.confirmForward;
+    $btn.attr('loading', '').attr('disabled', '');
+
     try {
-        // 确定要转发的消息ID
         const messageIds = selectedMessageIds.length > 0 ? selectedMessageIds : [message.id];
-        
-        // 发送转发请求，默认使用合并转发模式
+
         await HttpUtil.post(
             `${CORE_CONFIG.API_URL}/chat/forward`,
             {
@@ -1670,84 +1627,69 @@ const handleForwardMessage = async () => {
                 }
             }
         );
-        
+
         mdui.snackbar({ message: '转发成功', placement: 'top' });
         elements.forwardDialog.prop('open', false);
-        
-        // 清空选中状态并退出多选模式
+
         state.selectedMessages.clear();
         state.selectedMessagesForForward = [];
         state.selectedTargetRoomId = null;
         updateMessageSelectionUI();
-        
-        // 如果处于多选模式，退出多选模式
+
         if (state.isSelectMode) {
             exitSelectMode();
         }
-        
+
     } catch (error) {
         console.error('转发消息失败:', error);
         mdui.snackbar({ message: '转发失败，请重试', placement: 'top' });
+    } finally {
+        $btn.removeAttr('loading').removeAttr('disabled');
     }
 };
 
 /**
  * 选择所有消息
+ * @returns {void}
  */
 const selectAllMessages = () => {
-    // 清空当前选中状态
     state.selectedMessages.clear();
 
-    // 选择所有消息
     state.timelineItems.forEach(item => {
         if (item.type === ITEM_TYPES.MESSAGE && item.message_type !== MESSAGE_TYPES.DELETED) {
             state.selectedMessages.add(item.id);
         }
     });
 
-    // 更新UI
     updateMessageSelectionUI();
 };
 
 /**
  * 取消选择所有消息
+ * @returns {void}
  */
 const deselectAllMessages = () => {
-    // 清空选中状态
     state.selectedMessages.clear();
-
-    // 更新UI
     updateMessageSelectionUI();
 };
 
 /**
  * 进入多选模式
+ * @returns {void}
  */
 const enterSelectMode = () => {
-    // 设置为多选模式
     state.isSelectMode = true;
-
-    // 显示多选模式UI
     elements.multiSelectToolbar[0].hide = false;
-
-    // 更新选中计数
     updateSelectedCount();
-
-    // 禁用消息的双击回复功能，避免与选择冲突
-    // 实际实现中，我们会在消息点击事件中检查是否处于多选模式
 };
 
 /**
  * 退出多选模式
+ * @returns {void}
  */
 const exitSelectMode = () => {
-    // 退出多选模式
     state.isSelectMode = false;
-
-    // 隐藏多选模式UI
     elements.multiSelectToolbar[0].hide = true;
-
-    // 清空选中状态
     state.selectedMessages.clear();
     state.selectedMessagesForForward = [];
     updateMessageSelectionUI();
@@ -1755,6 +1697,7 @@ const exitSelectMode = () => {
 
 /**
  * 更新选中消息计数
+ * @returns {void}
  */
 const updateSelectedCount = () => {
     elements.selectedCount.text(state.selectedMessages.size);
@@ -1762,6 +1705,7 @@ const updateSelectedCount = () => {
 
 /**
  * 转发选中的消息
+ * @returns {void}
  */
 const forwardSelectedMessages = () => {
     const selectedIds = Array.from(state.selectedMessages);
@@ -1771,12 +1715,12 @@ const forwardSelectedMessages = () => {
         return;
     }
 
-    // 打开转发对话框，处理多个消息
     openForwardDialogForMultiple(selectedIds);
 };
 
 /**
  * 处理多选模式下的逐条转发
+ * @returns {void}
  */
 const handleForwardSingle = () => {
     const selectedIds = Array.from(state.selectedMessages);
@@ -1786,12 +1730,12 @@ const handleForwardSingle = () => {
         return;
     }
 
-    // 打开转发对话框，设置转发模式为逐条转发
     openForwardDialogForMultiple(selectedIds, 'single');
 };
 
 /**
  * 处理多选模式下的合并转发
+ * @returns {void}
  */
 const handleForwardMerged = () => {
     const selectedIds = Array.from(state.selectedMessages);
@@ -1801,15 +1745,14 @@ const handleForwardMerged = () => {
         return;
     }
 
-    // 打开转发对话框，设置转发模式为合并转发
     openForwardDialogForMultiple(selectedIds, 'merged');
 };
 
 /**
  * 更新消息选择状态的UI
+ * @returns {void}
  */
 const updateMessageSelectionUI = () => {
-    // 遍历所有消息元素，更新选中状态
     elements.messageList.find('.message-row').each((index, element) => {
         const $element = $(element);
         const messageId = parseInt($element.attr('data-message-id'));
@@ -1824,30 +1767,29 @@ const updateMessageSelectionUI = () => {
 
 /**
  * 打开转发对话框，处理多个消息
+ * @param {Array<number>} messageIds - 消息ID数组
+ * @param {string} mode - 转发模式（single/merged）
+ * @returns {Promise<void>}
  */
 const openForwardDialogForMultiple = async (messageIds, mode = 'single') => {
-    // 显示对话框和加载状态
     elements.forwardDialog.prop('open', true);
     elements.forwardLoading.show();
     elements.forwardContent.hide();
-    
+
     try {
-        // 加载用户的聊天室列表
         const result = await HttpUtil.get(`${CORE_CONFIG.API_URL}/rooms/my`, {}, {
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${USER_LOGIN_TOKEN}`
             }
         });
-        
+
         const rooms = result.data?.rooms || [];
-        
-        // 填充聊天室列表
+
         const roomList = elements.forwardContent.find('#forwardRoomList');
         roomList.empty();
-        
+
         rooms.forEach(room => {
-            // 排除当前聊天室
             if (room.id !== state.currentRoomInfo.id) {
                 const roomItem = $(`
                     <div class="forward-room-item" data-room-id="${room.id}" style="padding: 12px; cursor: pointer; border-bottom: 1px solid rgba(0,0,0,0.05); transition: background-color 0.2s;">
@@ -1862,27 +1804,22 @@ const openForwardDialogForMultiple = async (messageIds, mode = 'single') => {
                         </div>
                     </div>
                 `);
-                
-                // 添加点击事件
-                roomItem.on('click', function() {
-                    // 移除其他房间的选中状态
+
+                roomItem.on('click', function () {
                     roomList.find('.forward-room-item').removeClass('selected');
-                    // 添加当前房间的选中状态
                     $(this).addClass('selected');
-                    // 存储选中的目标聊天室ID
                     state.selectedTargetRoomId = parseInt($(this).attr('data-room-id'));
                 });
-                
+
                 roomList.append(roomItem);
             }
         });
-        
-        // 填充转发预览
+
         let previewContent = '';
-        const selectedMessages = state.timelineItems.filter(item => 
+        const selectedMessages = state.timelineItems.filter(item =>
             item.type === ITEM_TYPES.MESSAGE && messageIds.includes(item.id)
         );
-        
+
         selectedMessages.forEach((msg, index) => {
             let contentHTML = '';
             switch (msg.message_type) {
@@ -1897,8 +1834,7 @@ const openForwardDialogForMultiple = async (messageIds, mode = 'single') => {
                 default:
                     contentHTML = '[不支持的消息类型]';
             }
-            
-            // 限制显示的消息数量
+
             if (index < 5) {
                 const senderName = msg.user_id === CONFIG.ME_USER_ID ? '我' : (msg.nickname || '对方');
                 previewContent += `
@@ -1913,18 +1849,15 @@ const openForwardDialogForMultiple = async (messageIds, mode = 'single') => {
                 </div>`;
             }
         });
-        
+
         elements.forwardPreviewContent.html(previewContent);
-        
-        // 显示内容，隐藏加载
+
         elements.forwardLoading.hide();
         elements.forwardContent.show();
-        
-        // 存储选中的消息ID，供转发时使用
+
         state.selectedMessagesForForward = messageIds;
-        // 重置选中的目标聊天室ID
         state.selectedTargetRoomId = null;
-        
+
     } catch (error) {
         console.error('加载聊天室列表失败:', error);
         mdui.snackbar({ message: '加载聊天室列表失败' });
@@ -1934,23 +1867,24 @@ const openForwardDialogForMultiple = async (messageIds, mode = 'single') => {
 
 /**
  * 切换底部应用栏显示/隐藏
+ * @returns {void}
  */
 const toggleActionBar = () => {
     const actionBar = elements.actionBar[0];
     actionBar.hide = !actionBar.hide;
-    // 同时关闭表情面板
     elements.emojiPanel.css('display', 'none');
 };
 
 /**
  * 打开文件管理对话框
+ * @returns {Promise<void>}
  */
 const openFileManagerDialog = async () => {
     elements.fileManagerDialog.prop('open', true);
     elements.fileManagerLoading.css('display', 'flex');
     elements.fileListContainer.html('');
     elements.fileStats.html('');
-    
+
     try {
         await Promise.all([
             loadFileStats(),
@@ -1966,6 +1900,7 @@ const openFileManagerDialog = async () => {
 
 /**
  * 加载文件统计信息
+ * @returns {Promise<void>}
  */
 const loadFileStats = async () => {
     try {
@@ -1978,7 +1913,7 @@ const loadFileStats = async () => {
                 }
             }
         );
-        
+
         if (result.code === 200) {
             renderFileStats(result.data);
         }
@@ -1989,10 +1924,14 @@ const loadFileStats = async () => {
 
 /**
  * 渲染文件统计
+ * @param {Object} stats - 统计数据
+ * @param {number} stats.total_files - 文件总数
+ * @param {number} stats.total_size - 总大小（字节）
+ * @returns {void}
  */
 const renderFileStats = (stats) => {
     if (!stats) return;
-    
+
     const statsHTML = `
         <mdui-chip>
             <mdui-icon slot="icon">description</mdui-icon>
@@ -2008,6 +1947,8 @@ const renderFileStats = (stats) => {
 
 /**
  * 格式化文件大小
+ * @param {number} bytes - 字节数
+ * @returns {string} 格式化后的文件大小字符串
  */
 const formatFileSize = (bytes) => {
     if (bytes === 0) return '0 B';
@@ -2019,12 +1960,14 @@ const formatFileSize = (bytes) => {
 
 /**
  * 加载文件列表
+ * @param {number} page - 页码
+ * @returns {Promise<void>}
  */
 const loadFileList = async (page = 1) => {
     try {
         const result = await HttpUtil.get(
             `${CORE_CONFIG.API_URL}/files/list`,
-            { 
+            {
                 room_id: state.currentRoomInfo.id,
                 page: page,
                 limit: 50
@@ -2035,7 +1978,7 @@ const loadFileList = async (page = 1) => {
                 }
             }
         );
-        
+
         if (result.code === 200) {
             renderFileList(result.data.files || []);
         }
@@ -2047,6 +1990,8 @@ const loadFileList = async (page = 1) => {
 
 /**
  * 渲染文件列表
+ * @param {Array} files - 文件数组
+ * @returns {void}
  */
 const renderFileList = (files) => {
     if (!files || files.length === 0) {
@@ -2057,7 +2002,7 @@ const renderFileList = (files) => {
         `);
         return;
     }
-    
+
     let listHTML = '';
     files.forEach(file => {
         const canDelete = file.user_id === CONFIG.ME_USER_ID;
@@ -2085,11 +2030,10 @@ const renderFileList = (files) => {
             </div>
         `;
     });
-    
+
     elements.fileListContainer.html(listHTML);
-    
-    // 绑定删除按钮事件
-    elements.fileListContainer.find('.file-delete-btn').on('click', function() {
+
+    elements.fileListContainer.find('.file-delete-btn').on('click', function () {
         const fileId = $(this).attr('data-file-id');
         deleteFile(parseInt(fileId));
     });
@@ -2097,13 +2041,28 @@ const renderFileList = (files) => {
 
 /**
  * 删除文件
+ * @param {number} fileId - 文件ID
+ * @returns {void}
  */
-const deleteFile = async (fileId) => {
-    if (!confirm('确定要删除这个文件吗？')) return;
-    
+const deleteFile = (fileId) => {
+    state.currentDeletingFileId = fileId;
+    elements.deleteFileDialog.prop('open', true);
+};
+
+/**
+ * 确认删除文件
+ * @returns {Promise<void>}
+ */
+const confirmDeleteFile = async () => {
+    const fileId = state.currentDeletingFileId;
+    if (!fileId) return;
+
+    const $btn = elements.confirmDeleteFile;
+    $btn.attr('loading', '').attr('disabled', '');
+
     try {
         mdui.snackbar({ message: '正在删除...' });
-        
+
         const result = await HttpUtil.post(
             `${CORE_CONFIG.API_URL}/files/delete`,
             {
@@ -2117,10 +2076,9 @@ const deleteFile = async (fileId) => {
                 }
             }
         );
-        
+
         if (result.code === 200) {
             mdui.snackbar({ message: '删除成功' });
-            // 重新加载文件列表和统计
             elements.fileManagerLoading.css('display', 'flex');
             await Promise.all([
                 loadFileStats(),
@@ -2133,11 +2091,25 @@ const deleteFile = async (fileId) => {
     } catch (error) {
         console.error('删除文件失败:', error);
         mdui.snackbar({ message: error.message || '删除失败，请重试' });
+    } finally {
+        $btn.removeAttr('loading').removeAttr('disabled');
+        elements.deleteFileDialog.prop('open', false);
+        state.currentDeletingFileId = null;
     }
 };
 
 /**
+ * 取消删除文件
+ * @returns {void}
+ */
+const cancelDeleteFile = () => {
+    elements.deleteFileDialog.prop('open', false);
+    state.currentDeletingFileId = null;
+};
+
+/**
  * 切换 Markdown 模式
+ * @returns {void}
  */
 const toggleMarkdownMode = () => {
     state.isMarkdownEnabled = !state.isMarkdownEnabled;
@@ -2149,30 +2121,31 @@ const toggleMarkdownMode = () => {
         btn.style.color = '';
         mdui.snackbar({ message: 'Markdown 模式已关闭' });
     }
-    // 点击后关闭 actionBar
     closeActionBar();
 };
 
 /**
  * 处理消息发送
+ * @returns {Promise<void>}
  */
 const handleSendMessage = async () => {
     const messageText = elements.chatInput.val().trim();
     if (!messageText) return;
 
+    const $btn = elements.sendBtn;
+    $btn.attr('loading', '').attr('disabled', '');
+
     try {
-        // 发送消息到服务器
         const postData = {
             room_id: state.currentRoomInfo.id,
             content: messageText,
             reply_to: state.replyingTo ? state.replyingTo.id : null
         };
-        
-        // 如果启用了 Markdown，添加 type 参数
+
         if (state.isMarkdownEnabled) {
             postData.type = 'markdown';
         }
-        
+
         await HttpUtil.post(
             `${CORE_CONFIG.API_URL}/chat/send`,
             postData,
@@ -2186,7 +2159,6 @@ const handleSendMessage = async () => {
 
         poll();
 
-        // 重置输入和回复状态
         elements.chatInput.val('');
         state.replyingTo = null;
         elements.replyPreview.hide();
@@ -2195,20 +2167,24 @@ const handleSendMessage = async () => {
         mdui.snackbar({
             message: '发送消息失败，请重试'
         });
+    } finally {
+        $btn.removeAttr('loading').removeAttr('disabled');
     }
 };
 
 /**
- * 处理文件上传
+ * 处理文件上传（打开文件选择器）
+ * @returns {void}
  */
 const handleFileUpload = () => {
     elements.fileUploadInput.trigger('click');
-    // 点击后关闭 actionBar
     closeActionBar();
 };
 
 /**
  * 执行文件上传
+ * @param {Event} event - 文件选择事件
+ * @returns {Promise<void>}
  */
 const executeFileUpload = async (event) => {
     const file = event.target.files[0];
@@ -2216,7 +2192,7 @@ const executeFileUpload = async (event) => {
 
     try {
         mdui.snackbar({ message: '正在上传文件...' });
-        
+
         const formData = new FormData();
         formData.append('room_id', state.currentRoomInfo.id);
         formData.append('file', file);
@@ -2242,12 +2218,12 @@ const executeFileUpload = async (event) => {
         mdui.snackbar({ message: error.message || '文件上传失败，请重试' });
     }
 
-    // 清空文件输入
     elements.fileUploadInput.val('');
 };
 
 /**
  * 关闭 actionBar
+ * @returns {void}
  */
 const closeActionBar = () => {
     elements.actionBar[0].hide = true;
@@ -2256,111 +2232,97 @@ const closeActionBar = () => {
 
 /**
  * 初始化表情面板
+ * @returns {void}
  */
 const initializeEmojiPanel = () => {
     const tabsContainer = elements.emojiTabs[0];
-    
-    // 清空现有的 tabs
-    tabsContainer.innerHTML = '';
 
-    // 生成标签
-    emojiList.forEach((category) => {
-        const tab = document.createElement('mdui-tab');
-        tab.value = category.id;
-        tab.textContent = category.name;
-        tabsContainer.appendChild(tab);
-    });
-
-    // 生成内容
-    renderEmojiContent('mdui');
-
-    // 绑定标签切换事件
-    tabsContainer.addEventListener('change', (event) => {
-        const tabId = event.target.value;
+    emojiWidget.initializeEmojiPanel(tabsContainer, (tabId) => {
         state.currentEmojiTab = tabId;
         renderEmojiContent(tabId);
     });
+
+    renderEmojiContent('mdui');
 };
 
 /**
  * 渲染表情内容
+ * @param {string} tabId - 标签页ID
+ * @returns {void}
  */
 const renderEmojiContent = (tabId) => {
     const contentContainer = elements.emojiPanel.find('.emoji-panel-content');
-    const category = emojiList.find(c => c.id === tabId);
-    if (!category) return;
 
-    let contentHTML = '<div class="emoji-grid">';
-    category.emojis.forEach(emoji => {
-        contentHTML += `<div class="emoji-item" data-emoji-code="${emoji.code}" title="${emoji.name}">${emoji.icon}</div>`;
-    });
-    contentHTML += '</div>';
-    contentContainer.html(contentHTML);
-
-    // 绑定表情点击事件
-    contentContainer.off('click', '.emoji-item').on('click', '.emoji-item', function() {
-        const emojiCode = $(this).attr('data-emoji-code');
-        insertEmoji(emojiCode);
+    emojiWidget.renderEmojiContent(contentContainer, tabId, (emojiCode, isCustom) => {
+        if (isCustom) {
+            insertCustomEmoji(emojiCode);
+        } else {
+            insertEmoji(emojiCode);
+        }
     });
 };
 
 /**
- * 插入表情到输入框
+ * 插入自定义表情到输入框
+ * @param {string} emojiUrl - 表情图片URL
+ * @returns {void}
  */
-const insertEmoji = (emojiCode) => {
+const insertCustomEmoji = (emojiUrl) => {
     const input = elements.chatInput[0];
     const startPos = input.selectionStart;
     const endPos = input.selectionEnd;
     const currentValue = elements.chatInput.val();
-    
-    // 解析表情名称和代码
-    const parts = emojiCode.split('_');
-    const emojiName = parts[0];
-    const emojiCodePart = parts.slice(1).join('_');
-    const newFormat = `[!emoj_${emojiName}.${emojiCodePart}]`;
-    
+
+    const newFormat = `[!emoj_custom.${emojiUrl}]`;
+
     const newValue = currentValue.substring(0, startPos) + newFormat + currentValue.substring(endPos);
-    
+
     elements.chatInput.val(newValue);
     input.selectionStart = input.selectionEnd = startPos + newFormat.length;
     elements.chatInput.trigger('focus');
-    
-    // 插入表情后关闭面板和 actionBar
+
     closeActionBar();
 };
 
 /**
- * 解析表情代码为 HTML
+ * 插入表情到输入框
+ * @param {string} emojiCode - 表情代码
+ * @returns {void}
  */
-const parseEmojiCode = (emojiCode) => {
-    // 查找表情
-    for (const category of emojiList) {
-        for (const emoji of category.emojis) {
-            if (emoji.code === emojiCode) {
-                return emoji.icon;
-            }
-        }
-    }
-    return `[${emojiCode}]`;
+const insertEmoji = (emojiCode) => {
+    if (!emojiCode) return;
+
+    const input = elements.chatInput[0];
+    const startPos = input.selectionStart;
+    const endPos = input.selectionEnd;
+    const currentValue = elements.chatInput.val();
+
+    const parts = emojiCode.split('_');
+    const emojiName = parts[0];
+    const emojiCodePart = parts.slice(1).join('_');
+    const newFormat = `[!emoj_${emojiName}.${emojiCodePart}]`;
+
+    const newValue = currentValue.substring(0, startPos) + newFormat + currentValue.substring(endPos);
+
+    elements.chatInput.val(newValue);
+    input.selectionStart = input.selectionEnd = startPos + newFormat.length;
+    elements.chatInput.trigger('focus');
+
+    closeActionBar();
 };
 
 /**
  * 解析消息中的表情标签
+ * @param {string} content - 消息内容
+ * @returns {string} 解析后的内容
  */
 const parseEmojiInMessage = (content) => {
-    if (!content) return content;
-    
-    // 匹配新格式: [!emoj_name.code]
-    const emojiRegex = /\[!emoj_([^\.]+)\.([^\]]+)\]/g;
-    
-    return content.replace(emojiRegex, (match, emojiName, emojiCodePart) => {
-        const fullCode = `${emojiName}_${emojiCodePart}`;
-        return parseEmojiCode(fullCode);
-    });
+    return emojiWidget.parseEmojiInMessage(content);
 };
 
 /**
  * 切换表情面板显示/隐藏
+ * @returns {void}
  */
 const toggleEmojiPanel = () => {
     const panel = elements.emojiPanel;
@@ -2368,13 +2330,17 @@ const toggleEmojiPanel = () => {
         panel.css('display', 'none');
     } else {
         panel.css('display', 'flex');
-        // 初始化表情面板（如果还没有初始化）
         if (panel.find('.emoji-tab').length === 0) {
             initializeEmojiPanel();
         }
     }
 };
 
+/**
+ * 打开用户信息弹窗
+ * @param {number} userId - 用户ID
+ * @returns {Promise<void>}
+ */
 const openUserInfo = async (userId) => {
     const $dialog = elements.userInfoDialog;
     const $ui = elements.userInfoElements;
@@ -2414,12 +2380,12 @@ const openUserInfo = async (userId) => {
 };
 
 /**
- * 轮询新消息（优化：有本地消息时获取增量，无本地消息时获取最新）
+ * 轮询新消息
+ * @returns {Promise<void>}
  */
 const poll = async () => {
-    // 保存当前轮询时的房间ID，用于后面检查是否已切换房间
     const currentRoomId = state.currentRoomInfo?.id;
-    
+
     if (!state.currentRoomInfo || !currentRoomId) {
         if (state.isPolling) {
             state.pollTimer = setTimeout(poll, CONFIG.POLL_INTERVAL);
@@ -2432,7 +2398,6 @@ const poll = async () => {
             room_id: currentRoomId,
             limit: CONFIG.POLL_LIMIT
         };
-        // 同时传递两个 ID
         if (state.lastMessageId > 0) {
             params.last_message_id = state.lastMessageId;
         }
@@ -2446,16 +2411,13 @@ const poll = async () => {
             { headers: { 'Authorization': `Bearer ${USER_LOGIN_TOKEN}` } }
         );
 
-        // 检查在请求过程中是否已经切换房间或停止轮询
         if (!state.isPolling || state.currentRoomInfo?.id !== currentRoomId) {
             return;
         }
 
         let { messages = [], events = [] } = response.data || { messages: [], events: [] };
 
-        // 处理房间更新事件（不要过滤，但要更新房间信息）
         if (events && events.length > 0) {
-            // 遍历所有事件，遇到 room.update 则更新房间信息
             events.forEach(event => {
                 if (event.event_type === 'room.update') {
                     const newData = event.data?.new_data;
@@ -2464,13 +2426,11 @@ const poll = async () => {
                     }
                 }
             });
-            // 如果有任何 room.update 事件，刷新 UI 一次
             if (events.some(e => e.event_type === 'room.update')) {
                 updateRoomInfoUI(state.currentRoomInfo);
             }
         }
 
-        // 更新 lastMessageId 和 lastEventId（在过滤重复之前）
         if (messages && messages.length > 0) {
             const maxMsgId = Math.max(...messages.map(m => m.id));
             if (maxMsgId > state.lastMessageId) state.lastMessageId = maxMsgId;
@@ -2480,12 +2440,10 @@ const poll = async () => {
             if (maxEventId > state.lastEventId) state.lastEventId = maxEventId;
         }
 
-        // 过滤重复的消息和事件
         const uniqueData = filterDuplicateItems(messages, events);
 
         for (const event of uniqueData.events) {
             if (event.event_type === EVENT_TYPES.MESSAGE_DELETE) {
-                // 根据事件中的消息ID删除本地消息
                 const messageId = event.message_ref_id || event.data?.message_id;
                 if (messageId) {
                     await deleteMessageLocally(messageId);
@@ -2493,12 +2451,10 @@ const poll = async () => {
             }
         }
 
-        // 再次检查在处理过程中是否已经切换房间或停止轮询
         if (!state.isPolling || state.currentRoomInfo?.id !== currentRoomId) {
             return;
         }
 
-        // 转换并添加时间线项目
         if (uniqueData.messages.length > 0 || uniqueData.events.length > 0) {
             const messageItems = uniqueData.messages.map(msg => convertMessageToTimelineItem(msg));
             const eventItems = uniqueData.events.map(evt => convertEventToTimelineItem(evt));
@@ -2510,7 +2466,6 @@ const poll = async () => {
     } catch (error) {
         console.error('轮询失败:', error);
     } finally {
-        // 最后检查一次是否还在轮询状态，并且房间ID没有变化
         if (state.isPolling && state.currentRoomInfo?.id === currentRoomId) {
             state.pollTimer = setTimeout(poll, CONFIG.POLL_INTERVAL);
         }
@@ -2519,9 +2474,9 @@ const poll = async () => {
 
 /**
  * 开始轮询新消息（先加载本地消息，再启动轮询）
+ * @returns {Promise<void>}
  */
 const startPolling = async () => {
-    // 检查是否有当前房间信息
     if (!state.currentRoomInfo || !state.currentRoomInfo.id) {
         console.warn('没有房间信息，无法开始轮询');
         return;
@@ -2532,38 +2487,35 @@ const startPolling = async () => {
         return;
     }
 
-    // 先加载本地消息
     await loadLocalMessages();
 
     state.isPolling = true;
 
-    // 开始第一次轮询
     poll();
 };
 
 /**
  * 打开更新聊天室信息弹窗
+ * @returns {void}
  */
 const openRoomUpdateDialog = () => {
     elements.roomUpdateLoading.hide();
     const room = state.currentRoomInfo;
     if (!room) return;
 
-    // 填充当前房间信息到表单
     elements.roomUpdateName.val(room.name || '');
     elements.roomUpdateDesc.val(room.description || '');
     elements.roomUpdateMaxUsers.val(room.max_users || '');
     elements.roomUpdateAvatarPreview.attr('src', room.avatar_url || '');
 
-    // 清空文件输入
     elements.roomUpdateAvatarFile.val('');
 
-    // 显示弹窗
     elements.roomUpdateDialog.prop('open', true);
 };
 
 /**
  * 处理更新聊天室信息
+ * @returns {Promise<void>}
  */
 const handleRoomUpdate = async () => {
     const room = state.currentRoomInfo;
@@ -2575,7 +2527,8 @@ const handleRoomUpdate = async () => {
         return;
     }
 
-    // 显示加载状态
+    const $btn = elements.roomUpdateSubmit;
+    $btn.attr('loading', '').attr('disabled', '');
     elements.roomUpdateLoading.show();
 
     try {
@@ -2609,14 +2562,11 @@ const handleRoomUpdate = async () => {
         );
 
         if (result.code === 200) {
-            // 更新成功，更新本地房间信息
             const updatedRoom = result.data;
             state.currentRoomInfo = updatedRoom;
 
-            // 更新UI显示
             updateRoomInfoUI(updatedRoom);
 
-            // 关闭弹窗
             elements.roomUpdateDialog.prop('open', false);
 
             mdui.snackbar({
@@ -2634,12 +2584,14 @@ const handleRoomUpdate = async () => {
         });
     } finally {
         elements.roomUpdateLoading.hide();
+        $btn.removeAttr('loading').removeAttr('disabled');
     }
 };
 
 /**
  * 更新房间信息UI
  * @param {Object} room - 房间信息
+ * @returns {void}
  */
 const updateRoomInfoUI = (room) => {
     const $room = elements.roomData;
@@ -2662,6 +2614,7 @@ const updateRoomInfoUI = (room) => {
 
 /**
  * 初始化事件监听器
+ * @returns {void}
  */
 const initializeEventListeners = () => {
     elements.navigationDrawertoggle.on("click", () => {
@@ -2669,7 +2622,6 @@ const initializeEventListeners = () => {
     });
 
     elements.mobileBackBtn.on("click", () => {
-        // 手机端返回按钮：通知父窗口返回房间列表
         if (isInIframe()) {
             notifyParentToSwitchRoom(null);
         } else {
@@ -2680,11 +2632,11 @@ const initializeEventListeners = () => {
     elements.leaveRoom.on("click", () => {
         elements.confirmLeaveRoomDialog.prop('open', true);
     });
-    
+
     elements.confirmLeaveRoom.on('click', async () => {
         const $btn = elements.confirmLeaveRoom;
         $btn.attr('loading', '').attr('disabled', '');
-        
+
         try {
             const data = await HttpUtil.get(
                 `${CORE_CONFIG.API_URL}/rooms/leave`,
@@ -2695,12 +2647,11 @@ const initializeEventListeners = () => {
                     headers: { 'Authorization': `Bearer ${USER_LOGIN_TOKEN}` }
                 }
             );
-            
+
             if (data.code === 200) {
                 if (isInIframe()) {
                     notifyParentToSwitchRoom(null);
                 } else {
-                    // 不在iframe中，直接重定向到index.html
                     window.location.href = 'index.html';
                 }
             } else {
@@ -2713,12 +2664,11 @@ const initializeEventListeners = () => {
             $btn.removeAttr('loading').removeAttr('disabled');
         }
     });
-    
+
     elements.cancelConfirmLeaveRoom.on('click', (event) => {
         elements.confirmLeaveRoomDialog.prop('open', false);
     });
 
-    // 发送消息事件
     elements.sendBtn.on('click', handleSendMessage);
     elements.chatInput.on('keypress', (event) => {
         if (event.key === 'Enter' && !event.shiftKey) {
@@ -2727,7 +2677,6 @@ const initializeEventListeners = () => {
         }
     });
 
-    // 新增功能事件
     elements.addBtn.on('click', toggleActionBar);
     elements.toggleMarkdown.on('click', toggleMarkdownMode);
     elements.uploadFile.on('click', handleFileUpload);
@@ -2735,29 +2684,32 @@ const initializeEventListeners = () => {
     elements.openFileManager.on('click', openFileManagerDialog);
     elements.closeActionBar.on('click', closeActionBar);
     elements.fileUploadInput.on('change', executeFileUpload);
-    
-    // 文件管理事件
+
     elements.closeFileManager.on('click', () => {
         elements.fileManagerDialog.prop('open', false);
     });
     elements.refreshFileList.on('click', async () => {
+        const $btn = elements.refreshFileList;
+        $btn.attr('loading', '').attr('disabled', '');
         elements.fileManagerLoading.css('display', 'flex');
-        await Promise.all([
-            loadFileStats(),
-            loadFileList()
-        ]);
-        elements.fileManagerLoading.css('display', 'none');
+        try {
+            await Promise.all([
+                loadFileStats(),
+                loadFileList()
+            ]);
+        } finally {
+            elements.fileManagerLoading.css('display', 'none');
+            $btn.removeAttr('loading').removeAttr('disabled');
+        }
     });
 
-    // 点击外部区域关闭表情面板
     $(document).on('click', (event) => {
-        if (!$(event.target).closest(elements.emojiPanel).length && 
+        if (!$(event.target).closest(elements.emojiPanel).length &&
             !$(event.target).closest(elements.toggleEmoji).length) {
             elements.emojiPanel.css('display', 'none');
         }
     });
 
-    // 按ESC键取消回复或退出多选模式
     elements.chatInput.on('keydown', (event) => {
         if (event.key === 'Escape') {
             if (state.replyingTo) {
@@ -2768,20 +2720,16 @@ const initializeEventListeners = () => {
         }
     });
 
-    // 全局ESC键监听，用于退出多选模式
     $(document).on('keydown', (event) => {
         if (event.key === 'Escape' && state.isSelectMode) {
             exitSelectMode();
         }
     });
 
-    // 取消回复
     elements.cancelReply.on('click', cancelReply);
 
-    // 菜单事件
     elements.msgMenu.on('click', handleMenuAction);
 
-    // 点击外部关闭菜单
     $(document).on('click', (event) => {
         if (!$(event.target).closest(elements.msgMenu).length) {
             elements.msgMenu.hide();
@@ -2823,36 +2771,28 @@ const initializeEventListeners = () => {
         elements.roomUpdateDialog.prop('open', false);
     });
 
-    // 转发对话框事件
     elements.cancelForward.on('click', () => {
         elements.forwardDialog.prop('open', false);
     });
 
     elements.confirmForward.on('click', handleForwardMessage);
-    
-    // 详细转发记录对话框事件
+
     elements.closeForwardDetail.on('click', () => {
         elements.forwardDetailDialog.prop('open', false);
     });
-    
-    // 嵌套转发记录对话框事件
+
     elements.closeNestedForward.on('click', () => {
-        // 如果堆栈不为空，弹出上一层数据并打开
         if (state.nestedForwardStack.length > 0) {
             const previousData = state.nestedForwardStack.pop();
-            // 关闭当前弹窗
             elements.nestedForwardDialog.prop('open', false);
-            // 打开上一层弹窗
             setTimeout(() => {
                 openNestedForwardDialog(previousData);
-            }, 300); // 等待动画完成
+            }, 300);
         } else {
-            // 堆栈为空，关闭弹窗
             elements.nestedForwardDialog.prop('open', false);
         }
     });
 
-    // 多选模式事件
     elements.closeSelectModeBtn.on('click', exitSelectMode);
     elements.forwardSingleBtn.on('click', handleForwardSingle);
     elements.forwardMergedBtn.on('click', handleForwardMerged);
@@ -2865,56 +2805,44 @@ const initializeEventListeners = () => {
         elements.navigationDrawer.prop('open', true);
     });
 
-    elements.refreshRoomListBtn.on('click', () => {
-        loadChatRoomList();
-    });
-
-    elements.chatRoomList.on('click', '.chat-room-item', function () {
-        const roomId = $(this).attr('data-room-id');
-        if (!roomId || String(roomId) === String(state.currentRoomInfo?.id)) {
-            return;
-        }
-
-        if (isInIframe()) {
-            // 在iframe中，通过postMessage通知父窗口切换房间
-            notifyParentToSwitchRoom(roomId);
-        } else {
-            // 在非iframe环境中，重定向（虽然现在应该不会发生）
-            window.location.href = `chat.html?room_id=${roomId}`;
-        }
-    });
-
-    // 机器人管理事件
     elements.manageRoomBots.on('click', openRoomBotsDialog);
     elements.closeRoomBotsDialog.on('click', () => {
         elements.roomBotsDialog.prop('open', false);
     });
     elements.refreshRoomBots.on('click', loadRoomBots);
-    
+
+    // 监听表情上传事件
+    document.addEventListener('emoji.upload', async (event) => {
+        const { file } = event.detail;
+        if (file) {
+            await emojiWidget.uploadCustomEmoji(file, USER_LOGIN_TOKEN, CORE_CONFIG.API_URL);
+        }
+    });
+
     elements.closeInstallBotDialog.on('click', () => {
         elements.installBotDialog.prop('open', false);
     });
+
+    elements.cancelDeleteFile.on('click', cancelDeleteFile);
+    elements.confirmDeleteFile.on('click', confirmDeleteFile);
 };
 
 /**
  * 初始化消息列表的滚动监听
+ * @returns {void}
  */
 const initializeScrollListener = () => {
     const $messageList = elements.messageList;
 
-    // 监听滚动事件
     $messageList.on('scroll', () => {
-        // 用户手动滚动时，标记为已滚动
         if (!state.isUserScrolled) {
             state.isUserScrolled = true;
         }
 
-        // 清除之前的定时器
         if (state.scrollCheckTimer) {
             clearTimeout(state.scrollCheckTimer);
         }
 
-        // 设置新的定时器：如果用户滚动到底部，则重置滚动状态
         state.scrollCheckTimer = setTimeout(() => {
             if (isUserAtBottom()) {
                 state.isUserScrolled = false;
@@ -2922,7 +2850,6 @@ const initializeScrollListener = () => {
         }, 200);
     });
 
-    // 监听触摸事件（移动端）
     $messageList.on('touchstart', () => {
         state.isUserScrolled = true;
     });
@@ -2938,8 +2865,8 @@ const initializeScrollListener = () => {
 
 /**
  * 渲染聊天室列表项 HTML
- * @param {Object} room
- * @returns {string}
+ * @param {Object} room - 聊天室对象
+ * @returns {string} HTML字符串
  */
 const renderChatRoomItemHTML = (room) => {
     const isActive = state.currentRoomInfo?.id === room.id;
@@ -2957,46 +2884,9 @@ const renderChatRoomItemHTML = (room) => {
 };
 
 /**
- * 渲染聊天室列表
- * @param {Array} rooms
- */
-const renderChatRoomList = (rooms) => {
-    if (!rooms || rooms.length === 0) {
-        elements.chatRoomList.html('');
-        elements.chatRoomListEmpty.text('暂无聊天室可切换').show();
-        return;
-    }
-
-    const itemsHTML = rooms.map(room => renderChatRoomItemHTML(room)).join('');
-    elements.chatRoomList.html(itemsHTML);
-    elements.chatRoomListEmpty.hide();
-};
-
-/**
- * 加载当前用户的聊天室列表
- */
-const loadChatRoomList = async () => {
-    elements.chatRoomListEmpty.text('正在加载我的聊天室...').show();
-    elements.chatRoomList.html('');
-
-    try {
-        const result = await HttpUtil.get(`${CORE_CONFIG.API_URL}/rooms/my`, {}, {
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${USER_LOGIN_TOKEN}`
-            }
-        });
-
-        renderChatRoomList(result.data?.rooms || []);
-    } catch (error) {
-        console.error('加载聊天室列表失败:', error);
-        elements.chatRoomListEmpty.text('加载聊天室列表失败，请稍后重试').show();
-    }
-};
-
-/**
  * 更新侧边栏当前房间简介
- * @param {Object} room
+ * @param {Object} room - 房间信息
+ * @returns {void}
  */
 const updateSidebarRoomInfo = (room) => {
     if (!room) return;
@@ -3013,25 +2903,24 @@ const updateSidebarRoomInfo = (room) => {
 
 /**
  * 初始化当前房间信息
+ * @param {Object} roomData - 房间数据
+ * @returns {Promise<void>}
  */
 const initializecurrentRoomInfo = async (roomData) => {
     if (!roomData?.data) return;
 
-    // 停止旧的轮询
     if (state.pollTimer) {
         clearTimeout(state.pollTimer);
         state.pollTimer = null;
     }
     state.isPolling = false;
 
-    // 清空旧消息和状态
     elements.messageList.html('');
     state.lastMessageId = 0;
     state.lastEventId = 0;
     state.replyingMessage = null;
     elements.replyPreview.css('display', 'none');
 
-    // 显示/隐藏手机端返回按钮
     if (window.innerWidth < 1024 && isInIframe()) {
         elements.mobileBackBtn.css('display', '');
     } else {
@@ -3070,7 +2959,6 @@ const initializecurrentRoomInfo = async (roomData) => {
             },
         });
 
-        // 使用 map 生成字符串后，一次性交给 jQuery 的 .html() 渲染
         const memberListHTML = roomMembers.data.members.map(item => `
             <mdui-list-item class="member-item" data-user-id="${item.id}" rounded>
                 <mdui-avatar slot="icon" src="${item.avatar_url}"></mdui-avatar>
@@ -3086,39 +2974,37 @@ const initializecurrentRoomInfo = async (roomData) => {
         mdui.snackbar({ message: '加载房间成员失败' });
     }
 
-    // 判断当前用户是否是房主，控制更新按钮显示
     const isOwner = data.owner_id === CONFIG.ME_USER_ID;
     if (isOwner) {
-        // 显示更新按钮
         $room.updateBtn.css('display', '');
     } else {
-        // 隐藏更新按钮
         $room.updateBtn.css('display', 'none');
     }
 
-    // 3. 启动轮询（先加载本地消息，再轮询）
     startPolling();
 };
 
 /**
  * 应用初始化
+ * @returns {Promise<void>}
  */
 // 全局房间ID变量，由父窗口通过postMessage传递
 let currentRoomId = null;
 let currentActiveRoomId = null;
 let isInitialized = false;
-let eventListenersInitialized = false; // 标记事件监听器是否已初始化
+let eventListenersInitialized = false;
 
-// 监听来自父窗口的消息
+/**
+ * 监听来自父窗口的消息
+ * @param {MessageEvent} event - 消息事件
+ * @returns {void}
+ */
 window.addEventListener('message', (event) => {
     if (event.data && event.data.type === 'setRoomId') {
         const newRoomId = event.data.roomId;
 
-        // 如果是同一个房间，不处理
         if (currentActiveRoomId === newRoomId && isInitialized) {
-            // 确保界面正常显示
             if (elements.messageList.html() === '') {
-                // 如果消息列表为空，重新加载
                 initializeApp();
             }
             return;
@@ -3132,39 +3018,36 @@ window.addEventListener('message', (event) => {
     }
 });
 
-// 在文件末尾的 initializeApp 函数中添加/修改
+/**
+ * 初始化应用
+ * @returns {Promise<void>}
+ */
 const initializeApp = async () => {
     try {
-        // 检查登录状态：如果没有令牌，重定向到登录页面
         if (!USER_LOGIN_TOKEN) {
             window.location.href = 'login.html';
             return;
         }
 
         if (!currentRoomId) {
-            // 如果还没有房间ID，等待postMessage
             return;
         }
 
-        // 如果是同一个房间，不需要重新初始化
         if (currentActiveRoomId === currentRoomId && isInitialized) {
             console.debug('Same room, skipping re-initialization');
             return;
         }
 
-        // 清理之前的聊天室状态
         if (isInitialized) {
             cleanupChatRoom();
         }
 
-        // 只在第一次初始化时绑定事件监听器
         if (!eventListenersInitialized) {
             initializeEventListeners();
             initializeScrollListener();
             eventListenersInitialized = true;
         }
 
-        // 获取房间详情
         const roomData = await HttpUtil.get(`${CORE_CONFIG.API_URL}/rooms/detail`, {
             room_id: currentRoomId
         }, {
@@ -3174,19 +3057,15 @@ const initializeApp = async () => {
             },
         });
 
-        // 等待房间详情初始化完成（包含初始消息加载和轮询启动）
         await initializecurrentRoomInfo(roomData);
-        loadChatRoomList();
 
         await bgSettings.load();
         bgSettings.apply();
         bgSettings.watch();
 
-        // 标记已初始化
         currentActiveRoomId = currentRoomId;
         isInitialized = true;
 
-        // 通知父窗口 iframe 已准备就绪
         if (window.parent && window.parent !== window) {
             window.parent.postMessage({
                 type: 'chatRoomReady'
@@ -3202,16 +3081,41 @@ const initializeApp = async () => {
     }
 };
 
-// 添加清理函数
+/**
+ * 为表情菜单添加样式
+ * @returns {void}
+ */
+const addEmojiMenuStyles = () => {
+    if (!$('style#emoji-menu-styles').length) {
+        const styles = `
+            <style id="emoji-menu-styles">
+                .emoji-menu-item {
+                    padding: 8px 16px;
+                    cursor: pointer;
+                    transition: background-color 0.2s;
+                }
+                .emoji-menu-item:hover {
+                    background-color: rgba(0,0,0,0.05);
+                }
+            </style>
+        `;
+        $('head').append(styles);
+    }
+};
+
+addEmojiMenuStyles();
+
+/**
+ * 清理聊天室状态
+ * @returns {void}
+ */
 const cleanupChatRoom = () => {
-    // 停止轮询
     if (state.pollTimer) {
         clearTimeout(state.pollTimer);
         state.pollTimer = null;
     }
     state.isPolling = false;
 
-    // 清空状态
     state.lastMessageId = 0;
     state.lastEventId = 0;
     state.timelineItems = [];
@@ -3222,24 +3126,23 @@ const cleanupChatRoom = () => {
     state.lastItemTime = 0;
     state.currentRoomInfo = null;
 
-    // 重置初始化标志，允许重新加载新房间
     currentActiveRoomId = null;
     isInitialized = false;
 
-    // 清空消息列表
     elements.messageList.html('');
     elements.replyPreview.hide();
 
-    // 清空输入框
     elements.chatInput.val('');
-    
-    // 安全地清空标题栏（使用与 updateRoomInfoUI 相同的方式）
+
     elements.roomData.title.text('');
     document.title = 'XQFChat Room';
 };
 
+
+
 /**
  * 打开聊天室机器人管理对话框
+ * @returns {Promise<void>}
  */
 const openRoomBotsDialog = async () => {
     elements.roomBotsDialog.prop('open', true);
@@ -3248,11 +3151,12 @@ const openRoomBotsDialog = async () => {
 
 /**
  * 加载聊天室机器人列表
+ * @returns {Promise<void>}
  */
 const loadRoomBots = async () => {
     elements.roomBotsLoading.css('display', 'flex');
     elements.roomBotsList.html('');
-    
+
     try {
         const result = await HttpUtil.get(
             `${CORE_CONFIG.API_URL}/bots/room`,
@@ -3263,7 +3167,7 @@ const loadRoomBots = async () => {
                 }
             }
         );
-        
+
         renderRoomBots(result.data || []);
     } catch (error) {
         console.error('加载聊天室机器人失败:', error);
@@ -3281,6 +3185,8 @@ const loadRoomBots = async () => {
 
 /**
  * 渲染聊天室机器人列表
+ * @param {Array} bots - 机器人数组
+ * @returns {void}
  */
 const renderRoomBots = (bots) => {
     if (!bots || bots.length === 0) {
@@ -3296,11 +3202,11 @@ const renderRoomBots = (bots) => {
                 </mdui-button>
             </div>
         `);
-        
+
         $('#installBotFromMarketplace').off('click').on('click', openMarketplaceDialog);
         return;
     }
-    
+
     elements.roomBotsList.html(bots.map(bot => `
         <mdui-card variant="outlined" style="margin: 8px 0;">
             <div style="padding: 16px;">
@@ -3324,23 +3230,24 @@ const renderRoomBots = (bots) => {
             </mdui-button>
         </div>
     `);
-    
-    $('.uninstall-bot-btn').off('click').on('click', function() {
+
+    $('.uninstall-bot-btn').off('click').on('click', function () {
         const botId = $(this).attr('data-bot-id');
         uninstallBot(botId);
     });
-    
+
     $('#installBotFromMarketplace').off('click').on('click', openMarketplaceDialog);
 };
 
 /**
  * 打开机器人市场对话框
+ * @returns {Promise<void>}
  */
 const openMarketplaceDialog = async () => {
     elements.installBotDialog.prop('open', true);
     elements.marketplaceLoading.css('display', 'flex');
     elements.marketplaceBotsList.html('');
-    
+
     try {
         const result = await HttpUtil.get(
             `${CORE_CONFIG.API_URL}/bots/marketplace`,
@@ -3351,7 +3258,7 @@ const openMarketplaceDialog = async () => {
                 }
             }
         );
-        
+
         renderMarketplaceBots(result.data?.bots || []);
     } catch (error) {
         console.error('加载机器人市场失败:', error);
@@ -3363,6 +3270,8 @@ const openMarketplaceDialog = async () => {
 
 /**
  * 渲染机器人市场列表
+ * @param {Array} bots - 机器人数组
+ * @returns {void}
  */
 const renderMarketplaceBots = (bots) => {
     if (!bots || bots.length === 0) {
@@ -3374,7 +3283,7 @@ const renderMarketplaceBots = (bots) => {
         `);
         return;
     }
-    
+
     elements.marketplaceBotsList.html(bots.map(bot => `
         <mdui-card variant="outlined" style="margin: 8px 0;">
             <div style="padding: 16px;">
@@ -3401,8 +3310,8 @@ const renderMarketplaceBots = (bots) => {
             </div>
         </mdui-card>
     `).join(''));
-    
-    $('.install-bot-btn').off('click').on('click', function() {
+
+    $('.install-bot-btn').off('click').on('click', function () {
         const botId = $(this).attr('data-bot-id');
         installBot(botId);
     });
@@ -3410,12 +3319,14 @@ const renderMarketplaceBots = (bots) => {
 
 /**
  * 安装机器人到聊天室
+ * @param {number} botId - 机器人ID
+ * @returns {Promise<void>}
  */
 const installBot = async (botId) => {
     const $btn = $(`.install-bot-btn[data-bot-id="${botId}"]`);
     $btn.attr('loading', '').attr('disabled', '');
     progressManager.start();
-    
+
     try {
         const result = await HttpUtil.post(
             `${CORE_CONFIG.API_URL}/bots/install`,
@@ -3430,7 +3341,7 @@ const installBot = async (botId) => {
                 }
             }
         );
-        
+
         if (result.code === 200) {
             mdui.snackbar({ message: '机器人安装成功' });
             elements.installBotDialog.prop('open', false);
@@ -3449,12 +3360,14 @@ const installBot = async (botId) => {
 
 /**
  * 从聊天室卸载机器人
+ * @param {number} botId - 机器人ID
+ * @returns {Promise<void>}
  */
 const uninstallBot = async (botId) => {
     const $btn = $(`.uninstall-bot-btn[data-bot-id="${botId}"]`);
     $btn.attr('loading', '').attr('disabled', '');
     progressManager.start();
-    
+
     try {
         const result = await HttpUtil.post(
             `${CORE_CONFIG.API_URL}/bots/uninstall`,
@@ -3469,7 +3382,7 @@ const uninstallBot = async (botId) => {
                 }
             }
         );
-        
+
         if (result.code === 200) {
             mdui.snackbar({ message: '机器人卸载成功' });
             await loadRoomBots();
