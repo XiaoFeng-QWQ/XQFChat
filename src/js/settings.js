@@ -1,6 +1,6 @@
 "use strict";
 
-import { USER_LOGIN_TOKEN, $ } from './core.js';
+import { SSOAuth, $ } from './core.js';
 import { StorageUtil, IndexedDBUtil, progressManager } from './lib/util.js';
 const { setColorScheme, getColorFromImage } = mdui;
 
@@ -40,12 +40,11 @@ const elements = {
     bgImageInput: $('.bg-image-input'),
     bgBlurInput: $('.bg-blur-input'),
 
+    totalRoomsCount: $('#totalRoomsCount'),
     totalMessagesSize: $('#totalMessagesSize'),
-    currentRoomMessagesSize: $('#currentRoomMessagesSize'),
     totalMessagesCount: $('#totalMessagesCount'),
-    clearCurrentRoomMessages: $('#clearCurrentRoomMessages'),
     clearAllMessages: $('#clearAllMessages'),
-    exportMessages: $('#exportMessages'),
+    roomStorageList: $('#roomStorageList'),
 
     // 消息显示设置
     showMessageTime: $('#showMessageTime'),
@@ -95,7 +94,9 @@ const state = {
     currentRoomId: null,
     extractedColor: null,
     tempBgImage: null,
-    currentBgType: 'default' // 新增：当前选中的背景类型
+    currentBgType: 'default', // 当前选中的背景类型
+    rooms: [],        // 从父窗口获取的房间列表
+    roomStats: []     // 各房间存储统计
 };
 
 let isSettingsInitialized = false;
@@ -105,7 +106,8 @@ let isSettingsInitialized = false;
  */
 const init = async () => {
     // 检查登录状态：如果没有令牌，重定向到登录页面
-    if (!USER_LOGIN_TOKEN) {
+    const ssoData = await SSOAuth.check();
+    if (!ssoData) {
         window.location.href = 'login.html';
         return;
     }
@@ -126,8 +128,8 @@ const init = async () => {
     // 绑定事件
     bindEvents();
 
-    // 计算存储使用情况
-    await calculateStorageUsage();
+    // 请求父窗口的房间列表数据
+    requestRoomsFromParent();
 
     // 标记已初始化
     isSettingsInitialized = true;
@@ -137,6 +139,23 @@ const init = async () => {
         window.parent.postMessage({
             type: 'settingsReady'
         }, '*');
+    }
+
+    // 监听父窗口返回的房间列表数据
+    window.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'roomsData') {
+            state.rooms = event.data.rooms || [];
+            calculateAllRoomsStorage(state.rooms);
+        }
+    });
+};
+
+/**
+ * 向父窗口请求房间列表数据
+ */
+const requestRoomsFromParent = () => {
+    if (window.parent && window.parent !== window) {
+        window.parent.postMessage({ type: 'requestRooms' }, '*');
     }
 };
 
@@ -336,38 +355,89 @@ const applyBgToPreview = (settings) => {
 };
 
 /**
- * 计算存储使用情况（使用 IndexedDB）
+ * 计算所有聊天室的存储使用情况
+ * @param {Array} rooms - 房间列表
  */
-const calculateStorageUsage = async () => {
-    if (!state.currentRoomId) {
-        elements.totalMessagesSize.text('-');
-        elements.currentRoomMessagesSize.text('-');
-        elements.totalMessagesCount.text('-');
+const calculateAllRoomsStorage = async (rooms) => {
+    if (!rooms || rooms.length === 0) {
+        elements.totalRoomsCount.text('0');
+        elements.totalMessagesSize.text('0 Bytes');
+        elements.totalMessagesCount.text('0');
+        renderRoomStorageList([]);
         return;
     }
 
     try {
-        // 获取当前房间的消息和事件
-        const messages = await IndexedDBUtil.getItem(getMessageStorageKey(state.currentRoomId), [], 'chatData');
-        const events = await IndexedDBUtil.getItem(getEventStorageKey(state.currentRoomId), [], 'chatData');
+        const stats = [];
+        let grandTotalSize = 0;
+        let grandTotalCount = 0;
 
-        const messagesStr = JSON.stringify(messages);
-        const eventsStr = JSON.stringify(events);
+        for (const room of rooms) {
+            const messagesData = await IndexedDBUtil.getItem(getMessageStorageKey(room.id), { items: [] }, 'chatData');
+            const eventsData = await IndexedDBUtil.getItem(getEventStorageKey(room.id), { items: [] }, 'chatData');
 
-        const messagesSize = new Blob([messagesStr]).size;
-        const eventsSize = new Blob([eventsStr]).size;
-        const totalSize = messagesSize + eventsSize;
-        const totalCount = messages.length + events.length;
+            const messages = messagesData && messagesData.items ? messagesData.items : [];
+            const events = eventsData && eventsData.items ? eventsData.items : [];
 
-        elements.totalMessagesSize.text(formatBytes(totalSize));
-        elements.currentRoomMessagesSize.text(formatBytes(totalSize)); // 当前房间即为总大小
-        elements.totalMessagesCount.text(totalCount);
+            const messagesStr = JSON.stringify(messagesData);
+            const eventsStr = JSON.stringify(eventsData);
+            const messagesSize = new Blob([messagesStr]).size;
+            const eventsSize = new Blob([eventsStr]).size;
+            const totalSize = messagesSize + eventsSize;
+            const totalCount = messages.length + events.length;
+
+            stats.push({
+                roomId: room.id,
+                name: room.name,
+                avatarUrl: room.avatar_url,
+                size: totalSize,
+                count: totalCount
+            });
+
+            grandTotalSize += totalSize;
+            grandTotalCount += totalCount;
+        }
+
+        state.roomStats = stats;
+        elements.totalRoomsCount.text(rooms.length);
+        elements.totalMessagesSize.text(formatBytes(grandTotalSize));
+        elements.totalMessagesCount.text(grandTotalCount);
+        renderRoomStorageList(stats);
     } catch (error) {
         console.error('计算存储使用情况失败:', error);
+        elements.totalRoomsCount.text('-');
         elements.totalMessagesSize.text('计算失败');
-        elements.currentRoomMessagesSize.text('计算失败');
         elements.totalMessagesCount.text('-');
+        renderRoomStorageList([]);
     }
+};
+
+/**
+ * 渲染房间存储列表
+ * @param {Array} stats - 房间统计数据
+ */
+const renderRoomStorageList = (stats) => {
+    if (!stats || stats.length === 0) {
+        elements.roomStorageList.html('<div class="empty-hint">暂无聊天室数据</div>');
+        return;
+    }
+
+    elements.roomStorageList.html(stats.map(stat => `
+        <div class="room-storage-item" data-room-id="${stat.roomId}">
+            <mdui-avatar src="${stat.avatarUrl}" style="width: 40px; height: 40px;"></mdui-avatar>
+            <div class="room-storage-info">
+                <div class="room-storage-name">${stat.name}</div>
+                <div class="room-storage-meta">
+                    <span>${stat.count} 条消息</span>
+                    <span>${formatBytes(stat.size)}</span>
+                </div>
+            </div>
+            <div class="room-storage-actions">
+                <mdui-button-icon icon="download" class="exportRoomBtn" title="导出"></mdui-button-icon>
+                <mdui-button-icon icon="delete" class="clearRoomBtn" title="清空"></mdui-button-icon>
+            </div>
+        </div>
+    `).join(''));
 };
 
 /**
@@ -650,27 +720,57 @@ const bindEvents = () => {
         }, '*');
     });
 
-    // 本地消息管理（使用 IndexedDB）
+    // 本地消息管理（使用 IndexedDB）—— 所有房间
 
-    // 清空当前房间消息
-    elements.clearCurrentRoomMessages.on('click', () => {
-        if (!state.currentRoomId) {
-            mdui.snackbar({ message: '当前不在聊天室中' });
+    // 全部清空
+    elements.clearAllMessages.on('click', () => {
+        if (!state.roomStats || state.roomStats.length === 0) {
+            mdui.snackbar({ message: '没有可清空的消息' });
             return;
         }
 
-        $('#confirmClearMessage').text('确定要清空当前聊天室的本地消息记录吗？此操作不可恢复。');
+        const totalCount = state.roomStats.reduce((sum, s) => sum + s.count, 0);
+        $('#confirmClearMessage').text(`确定要清空所有聊天室（共 ${state.roomStats.length} 个）的本地消息记录吗？此操作不可恢复。共 ${totalCount} 条消息。`);
         elements.confirmClearDialog.prop('open', true);
 
-        // 绑定确认事件（一次性）
         elements.confirmClear.off('click').on('click', async () => {
             try {
-                // 使用正确的存储键名删除
-                await IndexedDBUtil.removeItem(getMessageStorageKey(state.currentRoomId), 'chatData');
-                await IndexedDBUtil.removeItem(getEventStorageKey(state.currentRoomId), 'chatData');
+                progressManager.start();
+                for (const stat of state.roomStats) {
+                    await IndexedDBUtil.removeItem(getMessageStorageKey(stat.roomId), 'chatData');
+                    await IndexedDBUtil.removeItem(getEventStorageKey(stat.roomId), 'chatData');
+                }
                 elements.confirmClearDialog.prop('open', false);
-                await calculateStorageUsage(); // 重新计算
-                mdui.snackbar({ message: '已清空当前聊天室消息记录' });
+                await calculateAllRoomsStorage(state.rooms);
+                mdui.snackbar({ message: '已清空所有本地消息记录' });
+            } catch (error) {
+                console.error('清空消息失败:', error);
+                mdui.snackbar({ message: '清空失败，请重试' });
+            } finally {
+                progressManager.stop();
+            }
+        });
+    });
+
+    // 单房间操作：清空 / 导出（事件委托）
+    elements.roomStorageList.on('click', '.clearRoomBtn', function () {
+        const $item = $(this).closest('.room-storage-item');
+        const roomId = $item.attr('data-room-id');
+        if (!roomId) return;
+
+        const stat = state.roomStats.find(s => s.roomId === roomId);
+        const roomName = stat ? stat.name : roomId;
+
+        $('#confirmClearMessage').text(`确定要清空「${roomName}」的本地消息记录吗？此操作不可恢复。`);
+        elements.confirmClearDialog.prop('open', true);
+
+        elements.confirmClear.off('click').on('click', async () => {
+            try {
+                await IndexedDBUtil.removeItem(getMessageStorageKey(roomId), 'chatData');
+                await IndexedDBUtil.removeItem(getEventStorageKey(roomId), 'chatData');
+                elements.confirmClearDialog.prop('open', false);
+                await calculateAllRoomsStorage(state.rooms);
+                mdui.snackbar({ message: `已清空「${roomName}」的消息记录` });
             } catch (error) {
                 console.error('清空消息失败:', error);
                 mdui.snackbar({ message: '清空失败，请重试' });
@@ -678,46 +778,47 @@ const bindEvents = () => {
         });
     });
 
-    // 清空所有消息（暂不支持一键清空所有房间）
-    elements.clearAllMessages.on('click', () => {
-        mdui.snackbar({ message: '暂不支持一键清空所有房间，请单独清空每个房间' });
-        return;
+    elements.roomStorageList.on('click', '.exportRoomBtn', function () {
+        const $item = $(this).closest('.room-storage-item');
+        const roomId = $item.attr('data-room-id');
+        if (!roomId) return;
+
+        const stat = state.roomStats.find(s => s.roomId === roomId);
+        const roomName = stat ? stat.name : roomId;
+
+        (async () => {
+            try {
+                progressManager.start();
+                const messages = await IndexedDBUtil.getItem(getMessageStorageKey(roomId), [], 'chatData');
+                const events = await IndexedDBUtil.getItem(getEventStorageKey(roomId), [], 'chatData');
+
+                const exportData = {
+                    roomId: roomId,
+                    roomName: roomName,
+                    exportTime: new Date().toISOString(),
+                    messageCount: messages.length,
+                    eventCount: events.length,
+                    messages: messages,
+                    events: events
+                };
+
+                const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `chat_export_${roomId}_${new Date().getTime()}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                mdui.snackbar({ message: `「${roomName}」导出成功` });
+            } catch (error) {
+                console.error('导出消息失败:', error);
+                mdui.snackbar({ message: '导出失败' });
+            } finally {
+                progressManager.stop();
+            }
+        })();
     });
 
-    // 导出消息
-    elements.exportMessages.on('click', async () => {
-        if (!state.currentRoomId) {
-            mdui.snackbar({ message: '当前不在聊天室中' });
-            return;
-        }
-
-        try {
-            const messages = await IndexedDBUtil.getItem(getMessageStorageKey(state.currentRoomId), [], 'chatData');
-            const events = await IndexedDBUtil.getItem(getEventStorageKey(state.currentRoomId), [], 'chatData');
-
-            const exportData = {
-                roomId: state.currentRoomId,
-                exportTime: new Date().toISOString(),
-                messageCount: messages.length,
-                messages: messages,
-                events: events
-            };
-
-            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `chat_export_${state.currentRoomId}_${new Date().getTime()}.json`;
-            a.click();
-
-            URL.revokeObjectURL(url);
-
-            mdui.snackbar({ message: '导出成功' });
-        } catch (error) {
-            console.error('导出消息失败:', error);
-            mdui.snackbar({ message: '导出失败' });
-        }
-    });
 
     // 取消清空
     elements.cancelClear.on('click', () => {

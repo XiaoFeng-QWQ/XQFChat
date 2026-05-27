@@ -1,6 +1,6 @@
 "use strict";
 
-import { CORE_CONFIG, USER_LOGIN_TOKEN, $, ThemeManager } from './core.js';
+import { CORE_CONFIG, SSOAuth, $, ThemeManager } from './core.js';
 import { HttpUtil, StorageUtil, progressManager } from './lib/util.js';
 
 /**
@@ -81,15 +81,7 @@ const loadBots = async () => {
     elements.botsEmpty.hide();
 
     try {
-        const result = await HttpUtil.get(
-            `${CORE_CONFIG.API_URL}/bots/my`,
-            {},
-            {
-                headers: {
-                    'Authorization': `Bearer ${USER_LOGIN_TOKEN}`
-                }
-            }
-        );
+        const result = await HttpUtil.get(`${CORE_CONFIG.API_URL}/bots/my`);
 
         state.bots = result.data || [];
         renderBots(state.bots);
@@ -116,15 +108,7 @@ const loadBots = async () => {
  */
 const loadEventTypes = async () => {
     try {
-        const result = await HttpUtil.get(
-            `${CORE_CONFIG.API_URL}/enums/event-types`,
-            {},
-            {
-                headers: {
-                    'Authorization': `Bearer ${USER_LOGIN_TOKEN}`
-                }
-            }
-        );
+        const result = await HttpUtil.get(`${CORE_CONFIG.API_URL}/enums/event-types`);
 
         if (result.code === 200 && result.data?.item) {
             state.eventTypes = result.data.item;
@@ -263,7 +247,6 @@ const createBot = async () => {
             {
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${USER_LOGIN_TOKEN}`
                 }
             }
         );
@@ -380,7 +363,6 @@ const publishBotToMarketplace = async () => {
             {
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${USER_LOGIN_TOKEN}`
                 }
             }
         );
@@ -433,7 +415,6 @@ const unpublishBotFromMarketplace = async () => {
             {
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${USER_LOGIN_TOKEN}`
                 }
             }
         );
@@ -496,7 +477,6 @@ const updateBot = async () => {
             {
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${USER_LOGIN_TOKEN}`
                 }
             }
         );
@@ -552,7 +532,6 @@ const deleteBot = async () => {
             {
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${USER_LOGIN_TOKEN}`
                 }
             }
         );

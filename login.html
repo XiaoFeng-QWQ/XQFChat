@@ -7,6 +7,7 @@
     <title>XQFChat · 登录</title>
     <link rel="stylesheet" href="./src/css/login.css">
     <link rel="shortcut icon" href="./unpackage/res/icons/192x192.png" type="image/x-icon">
+    <script src="/lib/mdui.global.min.js"></script>
     <script type="module" src="./src/js/login.js"></script>
 </head>
 
@@ -17,30 +18,43 @@
                 <mdui-icon style="font-size: 48px;">chat</mdui-icon>
             </div>
             <div class="title">Flmp Chat</div>
-            <div class="subtitle">登录或注册你的Flmp账号</div>
+            <div class="subtitle" id="statusText">正在检测登录状态...</div>
         </div>
-        <form id="form">
-            <mdui-card class="login-card" variant="outlined">
-                <mdui-text-field id="email" name="email" label="邮箱" type="email" variant="outlined"
-                    clearable></mdui-text-field>
-                <mdui-text-field id="password" name="password" label="密码" type="password" variant="outlined"
-                    toggle-password></mdui-text-field>
-                <mdui-text-field id="emailVerifyVode" name="verify_code" label="邮箱验证码" type="text" variant="outlined"
-                    style="display: none;"></mdui-text-field>
 
-                <div style="display: flex; gap: 8px; align-items: flex-start; margin-top: 16px;">
-                    <mdui-text-field id="captchaInput" name="captcha_code" label="验证码" type="text" variant="outlined"
-                        style="flex: 1;" placeholder="请输入验证码" maxlength="6" required>
-                    </mdui-text-field>
-                    <img id="captcha" style="border-radius: var(--mdui-shape-corner-extra-small);cursor: pointer;height: 56px;"
-                        title="点击刷新验证码">
+        <!-- 检测中：旋转进度 -->
+        <div id="checkingSpinner" style="text-align: center; margin-top: 24px;">
+            <mdui-circular-progress></mdui-circular-progress>
+        </div>
+
+        <!-- 未登录：引导卡片 -->
+        <mdui-card class="login-card" variant="outlined" id="notLoggedInCard" style="display: none;">
+            <div style="text-align: center; padding: 16px 0;">
+                <mdui-icon style="font-size: 40px; opacity: 0.5;">login</mdui-icon>
+                <div style="margin-top: 12px; font-size: 15px; opacity: 0.8;">
+                    请前往 Flmp 统一账户中心登录
                 </div>
+                <div style="margin-top: 4px; font-size: 13px; opacity: 0.5;">
+                    登录后 Cookie 将自动同步，无需重复输入密码
+                </div>
+            </div>
+            <mdui-button id="goLoginBtn" variant="filled" full-width>
+                前往登录
+            </mdui-button>
+        </mdui-card>
 
-                <mdui-button id="loginBtn" type="button" variant="filled" full-width style="margin-top: 16px;">
-                    登录 / 注册
-                </mdui-button>
-            </mdui-card>
-        </form>
+        <!-- 错误状态 -->
+        <mdui-card class="login-card" variant="outlined" id="errorCard" style="display: none;">
+            <div style="text-align: center; padding: 16px 0;">
+                <mdui-icon style="font-size: 40px; color: rgb(var(--mdui-color-error));">error</mdui-icon>
+                <div style="margin-top: 12px; font-size: 15px;" id="errorText">
+                    检测登录状态失败，请检查网络后重试
+                </div>
+            </div>
+            <mdui-button id="retryBtn" variant="outlined" full-width>
+                重新检测
+            </mdui-button>
+        </mdui-card>
+
         <div class="login-footer">
             <div class="footer-content">
                 <div class="footer-links">
@@ -55,9 +69,6 @@
                 </div>
             </div>
         </div>
-    </div>
-    <div id="loading" class="mdui-circular-progress-overlay" style="display:none;">
-        <mdui-circular-progress></mdui-circular-progress>
     </div>
     <mdui-fab id="theme-toggle" icon="dark_mode"></mdui-fab>
 </body>

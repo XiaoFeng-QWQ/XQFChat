@@ -1,6 +1,6 @@
 "use strict";
 
-import { CORE_CONFIG, USER_LOGIN_TOKEN, $, ThemeManager } from './core.js';
+import { CORE_CONFIG, SSOAuth, $, ThemeManager } from './core.js';
 import { getFormData, HttpUtil, StorageUtil, progressManager } from './lib/util.js';
 import { weatherWidget } from './lib/widget.js';
 
@@ -68,6 +68,9 @@ const pullToRefreshState = {
     threshold: 60,
     maxPullDistance: 120
 };
+
+// 用于设置页本地消息管理
+let myRooms = [];
 
 /**
  * 初始化下拉刷新
@@ -388,7 +391,7 @@ const renderRooms = (rooms) => {
 
         if (lastMsg?.nickname && lastMsg?.content) {
             const messageType = lastMsg.type;
-            
+
             switch (messageType) {
                 case 'card.forward':
                     lastMessageText = `${lastMsg.nickname}: [转发消息]`;
@@ -614,17 +617,10 @@ const loadRooms = async (isRefresh = false) => {
     }
 
     try {
-        const result = await HttpUtil.get(
-            `${CORE_CONFIG.API_URL}/rooms/my`,
-            {},
-            {
-                headers: {
-                    'Authorization': `Bearer ${USER_LOGIN_TOKEN}`
-                }
-            }
-        );
+        const result = await HttpUtil.get(`${CORE_CONFIG.API_URL}/rooms/my`);
 
         renderRooms(result.data?.rooms || []);
+        myRooms = result.data?.rooms || [];
     } catch (err) {
         console.error('加载房间列表失败:', err);
         mdui.snackbar({
@@ -650,17 +646,7 @@ const loadRooms = async (isRefresh = false) => {
 
 const loadCurrentUser = async () => {
     try {
-        const result = await HttpUtil.get(
-            `${CORE_CONFIG.USER_API}/profile/get-current`,
-            {},
-            {
-                headers: {
-                    'Authorization': `Bearer ${USER_LOGIN_TOKEN}`
-                }
-            }
-        );
-
-        const user = result.data;
+        const user = await SSOAuth.fetchCurrentUser();
         if (user) {
             elements.meAvatar.attr('src', user.avatar_url);
             elements.meNickname.text(user.nickname);
@@ -718,9 +704,6 @@ const createChatRoom = async () => {
             `${CORE_CONFIG.API_URL}/rooms/create`,
             formData,
             {
-                headers: {
-                    'Authorization': `Bearer ${USER_LOGIN_TOKEN}`
-                }
             }
         );
 
@@ -808,11 +791,7 @@ const bindEvents = () => {
 
         globalSearchTimeout = setTimeout(async () => {
             try {
-                const result = await HttpUtil.get(
-                    `${CORE_CONFIG.API_URL}/rooms/search`,
-                    { keyword },
-                    { headers: { 'Authorization': `Bearer ${USER_LOGIN_TOKEN}` } }
-                );
+                const result = await HttpUtil.get(`${CORE_CONFIG.API_URL}/rooms/search`, { keyword });
                 renderGlobalSearchResults(result?.data || [], keyword);
             } catch (err) {
                 mdui.snackbar({ message: '搜索失败' });
@@ -833,11 +812,7 @@ const bindEvents = () => {
         }
 
         try {
-            await HttpUtil.post(
-                `${CORE_CONFIG.API_URL}/rooms/join`,
-                { room_id: roomId },
-                { headers: { 'Authorization': `Bearer ${USER_LOGIN_TOKEN}` } }
-            );
+            await HttpUtil.post(`${CORE_CONFIG.API_URL}/rooms/join`, { room_id: roomId });
             openRoom(roomId);
         } catch (err) {
             mdui.snackbar({ message: err?.message || '加入失败' });
@@ -852,18 +827,12 @@ const bindEvents = () => {
         elements.confirmLogout.on('click', async () => {
             const $btn = elements.confirmLogout;
             $btn.attr('loading', '').attr('disabled', '');
-            
+
             try {
-                const data = await HttpUtil.post(
-                    `${CORE_CONFIG.USER_API}/auth/logout`,
-                    {},
-                    {
-                        headers: { 'Authorization': `Bearer ${USER_LOGIN_TOKEN}` }
-                    }
-                );
-                
+                const data = await HttpUtil.post(`${CORE_CONFIG.USER_API}/auth/logout`);
+
                 if (data.code === 200) {
-                    StorageUtil.removeItem(CORE_CONFIG.STORAGE_KEYS.USER_INFO);
+                    SSOAuth.logout();
                     window.location.href = 'login.html';
                 } else {
                     mdui.snackbar({ message: '退出失败，请检查网络！' });
@@ -972,6 +941,12 @@ const bindEvents = () => {
             // chat.js 通知父窗口 iframe 已准备就绪
             iframeCache.chat.loaded = true;
             progressManager.stop();
+        } else if (event.data && event.data.type === 'requestRooms') {
+            // 设置页请求房间列表数据
+            event.source.postMessage({
+                type: 'roomsData',
+                rooms: myRooms
+            }, event.origin);
         }
     });
 };
@@ -979,7 +954,8 @@ const bindEvents = () => {
 const init = async () => {
     progressManager.init();
 
-    if (!USER_LOGIN_TOKEN) {
+    const ssoData = await SSOAuth.check();
+    if (!ssoData) {
         window.location.href = 'login.html';
         return;
     }
@@ -1017,4 +993,4 @@ const init = async () => {
 
 $(document).ready(init);
 
-export { elements };
+export { elements, myRooms };

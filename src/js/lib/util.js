@@ -1,6 +1,6 @@
 "use strict";
 
-import { CORE_CONFIG, USER_LOGIN_TOKEN, $ } from "../core.js";
+import { CORE_CONFIG, $ } from "../core.js";
 
 /**
  * AJAX 请求封装
@@ -36,10 +36,10 @@ const HttpUtil = {
      * 处理未授权情况
      */
     async handleUnauthorized() {
-        HttpUtil.post(
-            `${CORE_CONFIG.USER_API}/auth/logout`,
-            { headers: { 'Authorization': `Bearer ${USER_LOGIN_TOKEN}` } }
-        );
+        // SSO Cookie 模式：Cookie 由服务端管理，前端无需手动清除
+            
+            
+
         window.location = 'login.html';
     },
 
@@ -100,7 +100,8 @@ const HttpUtil = {
                 method: mergedConfig.method || 'GET',
                 headers: mergedConfig.headers,
                 signal: controller.signal,
-                ...mergedConfig
+                ...mergedConfig,
+                credentials: 'include'
             };
 
             if (mergedConfig.body instanceof FormData) {

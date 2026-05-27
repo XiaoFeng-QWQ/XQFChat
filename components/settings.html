@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="stylesheet" href="./../src/css/settings.css">
+    <script src="/lib/mdui.global.min.js"></script>
     <script type="module" src="./../src/js/settings.js"></script>
 </head>
 
@@ -138,26 +139,32 @@
                     <span>本地消息管理</span>
                 </div>
 
-                <div class="storage-info">
-                    <div class="storage-item">
-                        <span>当前聊天室消息</span>
-                        <span id="currentRoomMessagesSize">计算中...</span>
+                <!-- 存储总览 -->
+                <div class="storage-summary">
+                    <div class="storage-summary-item">
+                        <span class="summary-value" id="totalRoomsCount">-</span>
+                        <span class="summary-label">聊天室</span>
+                    </div>
+                    <div class="storage-summary-item">
+                        <span class="summary-value" id="totalMessagesSize">-</span>
+                        <span class="summary-label">存储占用</span>
+                    </div>
+                    <div class="storage-summary-item">
+                        <span class="summary-value" id="totalMessagesCount">-</span>
+                        <span class="summary-label">消息总数</span>
                     </div>
                 </div>
 
-                <mdui-list class="message-actions">
-                    <mdui-list-item id="clearCurrentRoomMessages" rounded>
-                        <mdui-icon slot="icon">delete_sweep</mdui-icon>
-                        <mdui-list-item-title>清空当前聊天室记录</mdui-list-item-title>
-                        <mdui-list-item-description>仅删除本地缓存的消息，不会影响服务器</mdui-list-item-description>
-                    </mdui-list-item>
+                <!-- 全部清空按钮 -->
+                <mdui-button id="clearAllMessages" variant="outlined" style="width: 100%; margin-bottom: 16px;">
+                    <mdui-icon slot="icon">delete_forever</mdui-icon>
+                    清空所有本地消息
+                </mdui-button>
 
-                    <mdui-list-item id="exportMessages" rounded>
-                        <mdui-icon slot="icon">download</mdui-icon>
-                        <mdui-list-item-title>导出聊天记录</mdui-list-item-title>
-                        <mdui-list-item-description>将当前聊天室消息导出为JSON文件</mdui-list-item-description>
-                    </mdui-list-item>
-                </mdui-list>
+                <!-- 房间列表 -->
+                <div class="room-storage-list" id="roomStorageList">
+                    <div class="empty-hint">加载中...</div>
+                </div>
             </mdui-card>
 
             <mdui-card variant="outlined" class="settings-card" style="display: none;">

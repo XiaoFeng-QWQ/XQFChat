@@ -1,8 +1,37 @@
 "use strict";
 
 import $ from './lib/jquery-4.0.0.esm.min.js';
-import './lib/mdui.global.min.js';
-import { StorageUtil } from './lib/util.js';
+
+
+/**
+ * localStorage 轻量封装
+ * 内联以避免与 util.js 的循环依赖
+ * @type {Object}
+ */
+const storage = {
+    getItem(key, defaultValue = null) {
+        try {
+            const value = localStorage.getItem(key);
+            return value ? JSON.parse(value) : defaultValue;
+        } catch (e) {
+            return defaultValue;
+        }
+    },
+    setItem(key, value) {
+        try {
+            localStorage.setItem(key, JSON.stringify(value));
+        } catch (e) {
+            console.error('localStorage.setItem failed:', e);
+        }
+    },
+    removeItem(key) {
+        try {
+            localStorage.removeItem(key);
+        } catch (e) {
+            console.error('localStorage.removeItem failed:', e);
+        }
+    }
+};
 
 /**
  * 核心配置常量
@@ -18,10 +47,107 @@ const CORE_CONFIG = {
 };
 
 /**
- * 用户登录令牌
- * @type {string|null}
+ * SSO 单点登录配置
+ * Cookie: flmp-user-auth-token, domain .flmp.uk, httponly
  */
-const USER_LOGIN_TOKEN = StorageUtil.getItem(CORE_CONFIG.STORAGE_KEYS.USER_INFO)?.token;
+const SSO_CONFIG = {
+    LOGIN_URL: 'https://user.flmp.uk',
+    SSO_CHECK_API: '/sso/check',
+    PROFILE_API: '/profile/get-current',
+    LOGOUT_API: '/auth/logout'
+};
+
+/**
+ * SSO 认证模块
+ * 基于 Cookie 的无 Token 认证体系
+ * @type {Object}
+ */
+const SSOAuth = {
+    /**
+     * 检查 SSO 登录状态
+     * 调用 /api/v1/sso/check，Cookie 自动携带
+     * @returns {Promise<Object|null>} 包含 accounts 数组的 data 对象，或 null
+     */
+    async check() {
+        try {
+            const resp = await fetch(`${CORE_CONFIG.USER_API}${SSO_CONFIG.SSO_CHECK_API}`, {
+                credentials: 'include'
+            });
+            const result = await resp.json();
+            if (result.code === 0 && result.data && result.data.accounts && result.data.accounts.length > 0) {
+                return result.data;
+            }
+            return null;
+        } catch (e) {
+            console.error('SSO check failed:', e);
+            return null;
+        }
+    },
+
+    /**
+     * 获取当前登录用户完整信息（含 email 等敏感字段）
+     * 调用 /api/v1/profile/get-current，Cookie 自动携带
+     * 成功后自动缓存到 localStorage
+     * @returns {Promise<Object|null>}
+     */
+    async fetchCurrentUser() {
+        try {
+            const resp = await fetch(`${CORE_CONFIG.USER_API}${SSO_CONFIG.PROFILE_API}`, {
+                credentials: 'include'
+            });
+            const result = await resp.json();
+            if (result.code === 200 && result.data) {
+                storage.setItem(CORE_CONFIG.STORAGE_KEYS.USER_INFO, result.data);
+                return result.data;
+            }
+            return null;
+        } catch (e) {
+            console.error('fetchCurrentUser failed:', e);
+            return null;
+        }
+    },
+
+    /**
+     * 从本地缓存获取用户信息（同步）
+     * @returns {Object|null}
+     */
+    getCachedUser() {
+        return storage.getItem(CORE_CONFIG.STORAGE_KEYS.USER_INFO);
+    },
+
+    /**
+     * 同步检查本地是否有用户缓存
+     * @returns {boolean}
+     */
+    isLocallyLoggedIn() {
+        return storage.getItem(CORE_CONFIG.STORAGE_KEYS.USER_INFO) !== null;
+    },
+
+    /**
+     * 退出当前登录
+     * @returns {Promise<void>}
+     */
+    async logout() {
+        try {
+            await fetch(`${CORE_CONFIG.USER_API}${SSO_CONFIG.LOGOUT_API}`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' }
+            });
+        } catch (e) {
+            console.error('SSO logout failed:', e);
+        }
+        storage.removeItem(CORE_CONFIG.STORAGE_KEYS.USER_INFO);
+    },
+
+    /**
+     * 跳转到 SSO 统一登录页面
+     * @returns {void}
+     */
+    redirectToLogin() {
+        window.location.href = SSO_CONFIG.LOGIN_URL;
+    }
+};
 
 /**
  * DOM 元素缓存
@@ -42,7 +168,7 @@ const ThemeManager = {
      * @returns {void}
      */
     saveThemePreference(isDark) {
-        StorageUtil.setItem('theme', {
+        storage.setItem('theme', {
             isDark,
             savedAt: new Date().toISOString()
         });
@@ -53,7 +179,7 @@ const ThemeManager = {
      * @returns {boolean} 是否为深色主题
      */
     loadThemePreference() {
-        const themeData = StorageUtil.getItem('theme', { isDark: false });
+        const themeData = storage.getItem('theme', { isDark: false });
         return themeData.isDark;
     },
 
@@ -113,7 +239,7 @@ const init = () => {
 
     initializeEventListeners();
 
-    mdui.setColorScheme(StorageUtil.getItem('theme_color', '#0061a4'));
+    mdui.setColorScheme(storage.getItem('theme_color', '#0061a4'));
 
     document.addEventListener('touchstart', function () {
         return false;
@@ -146,4 +272,4 @@ const init = () => {
 
 $(document).ready(init);
 
-export { CORE_CONFIG, USER_LOGIN_TOKEN, $, ThemeManager };
+export { CORE_CONFIG, SSO_CONFIG, SSOAuth, $, ThemeManager };

@@ -1,8 +1,9 @@
 "use strict";
 
-import { CORE_CONFIG, USER_LOGIN_TOKEN, $ } from './core.js';
+import { CORE_CONFIG, SSOAuth, $ } from './core.js';
 import { emojiWidget } from './lib/widget.js';
 import { HttpUtil, StorageUtil, formatTime, IndexedDBUtil, progressManager, isInIframe } from './lib/util.js';
+import { marked } from './lib/marked.esm.js'
 
 /**
  * DOM 元素集合
@@ -101,6 +102,14 @@ const elements = {
     emojiTabs: $('#emojiTabs'),
     fileUploadInput: $('#fileUploadInput'),
 
+    editorDialog: $('#editorDialog'),
+    editorToolbar: $('#editorToolbar'),
+    editorContent: $('#editorContent'),
+    openEditor: $('#openEditor'),
+    cancelEditor: $('#cancelEditor'),
+    clearEditor: $('#clearEditor'),
+    sendEditorContent: $('#sendEditorContent'),
+
     fileManagerDialog: $('#fileManagerDialog'),
     fileStats: $('#fileStats'),
     fileListContainer: $('#fileListContainer'),
@@ -122,7 +131,38 @@ const elements = {
 
     deleteFileDialog: $('#deleteFileDialog'),
     cancelDeleteFile: $('#cancelDeleteFile'),
-    confirmDeleteFile: $('#confirmDeleteFile')
+    confirmDeleteFile: $('#confirmDeleteFile'),
+
+    // 公告相关
+    noticePanel: $('#noticePanel'),
+    noticeList: $('#noticeList'),
+    closeNoticePanel: $('#closeNoticePanel'),
+    mandatoryNoticeDialog: $('#mandatoryNoticeDialog'),
+    mandatoryNoticeContent: $('#mandatoryNoticeContent'),
+    confirmMandatoryNotice: $('#confirmMandatoryNotice'),
+    manageNoticeDialog: $('#manageNoticeDialog'),
+    manageNoticeLoading: $('#manageNoticeLoading'),
+    manageNoticeContent: $('#manageNoticeContent'),
+    newNoticeContent: $('#newNoticeContent'),
+    newNoticeMandatory: $('#newNoticeMandatory'),
+    addNoticeBtn: $('#addNoticeBtn'),
+    manageNoticeList: $('#manageNoticeList'),
+    closeManageNotice: $('#closeManageNotice'),
+    manageNoticeBtn: $('#manageNoticeBtn'),
+
+    // 公告详情弹窗（点击 notice-item 打开）
+    noticeDetailDialog: $('#noticeDetailDialog'),
+    noticeDetailContent: $('#noticeDetailContent'),
+    noticeDetailMeta: $('#noticeDetailMeta'),
+    closeNoticeDetail: $('#closeNoticeDetail'),
+
+    // 所有公告弹窗（侧边栏入口）
+    allNoticesBtn: $('#allNoticesBtn'),
+    allNoticesDialog: $('#allNoticesDialog'),
+    allNoticesLoading: $('#allNoticesLoading'),
+    allNoticesContent: $('#allNoticesContent'),
+    allNoticesList: $('#allNoticesList'),
+    closeAllNotices: $('#closeAllNotices'),
 };
 
 /**
@@ -133,7 +173,7 @@ const CONFIG = {
     COMPACT_TIME_LIMIT: 60000,
     HIGHLIGHT_DURATION: 1500,
     TIME_BAR_GAP_MINUTES: 30,
-    ME_USER_ID: StorageUtil.getItem(CORE_CONFIG.STORAGE_KEYS.USER_INFO)?.id || null,
+    ME_USER_ID: SSOAuth.getCachedUser()?.id || null,
     SCROLL_THRESHOLD: 100,
     POLL_INTERVAL: 1000,
     POLL_LIMIT: 50,
@@ -175,7 +215,10 @@ const state = {
     nestedForwardStack: [],
     isMarkdownEnabled: false,
     currentEmojiTab: 'mdui',
-    currentDeletingFileId: null
+    currentDeletingFileId: null,
+    notices: [],                  // 当前聊天室公告列表
+    currentMandatoryNotice: null, // 当前弹窗中的强制公告
+    isOwner: false               // 当前用户是否为聊天室所有者
 };
 
 /**
@@ -1404,7 +1447,6 @@ const handleMessageDelete = async (messageId) => {
             {
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${USER_LOGIN_TOKEN}`
                 }
             }
         );
@@ -1514,7 +1556,6 @@ const openForwardDialog = async () => {
         const result = await HttpUtil.get(`${CORE_CONFIG.API_URL}/rooms/my`, {}, {
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${USER_LOGIN_TOKEN}`
             }
         });
 
@@ -1623,7 +1664,6 @@ const handleForwardMessage = async () => {
             {
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${USER_LOGIN_TOKEN}`
                 }
             }
         );
@@ -1780,7 +1820,6 @@ const openForwardDialogForMultiple = async (messageIds, mode = 'single') => {
         const result = await HttpUtil.get(`${CORE_CONFIG.API_URL}/rooms/my`, {}, {
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${USER_LOGIN_TOKEN}`
             }
         });
 
@@ -1908,9 +1947,6 @@ const loadFileStats = async () => {
             `${CORE_CONFIG.API_URL}/files/stats`,
             { room_id: state.currentRoomInfo.id },
             {
-                headers: {
-                    'Authorization': `Bearer ${USER_LOGIN_TOKEN}`
-                }
             }
         );
 
@@ -1973,9 +2009,6 @@ const loadFileList = async (page = 1) => {
                 limit: 50
             },
             {
-                headers: {
-                    'Authorization': `Bearer ${USER_LOGIN_TOKEN}`
-                }
             }
         );
 
@@ -2072,7 +2105,6 @@ const confirmDeleteFile = async () => {
             {
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${USER_LOGIN_TOKEN}`
                 }
             }
         );
@@ -2116,7 +2148,7 @@ const toggleMarkdownMode = () => {
     const btn = elements.toggleMarkdown[0];
     if (state.isMarkdownEnabled) {
         btn.style.color = 'rgb(var(--mdui-color-primary))';
-        mdui.snackbar({ message: 'Markdown 模式已开启' });
+        openEditorDialog(true);
     } else {
         btn.style.color = '';
         mdui.snackbar({ message: 'Markdown 模式已关闭' });
@@ -2152,7 +2184,6 @@ const handleSendMessage = async () => {
             {
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${USER_LOGIN_TOKEN}`
                 }
             }
         );
@@ -2201,9 +2232,6 @@ const executeFileUpload = async (event) => {
             `${CORE_CONFIG.API_URL}/files/upload`,
             formData,
             {
-                headers: {
-                    'Authorization': `Bearer ${USER_LOGIN_TOKEN}`
-                }
             }
         );
 
@@ -2228,6 +2256,677 @@ const executeFileUpload = async (event) => {
 const closeActionBar = () => {
     elements.actionBar[0].hide = true;
     elements.emojiPanel.css('display', 'none');
+};
+
+// ========================================
+// 公告相关函数
+// ========================================
+
+/**
+ * 加载聊天室公告列表
+ * @returns {Promise<void>}
+ */
+const loadNotices = async () => {
+    if (!state.currentRoomInfo?.id) return;
+
+    try {
+        const result = await HttpUtil.get(
+            `${CORE_CONFIG.API_URL}/rooms/notice`,
+            { room_id: state.currentRoomInfo.id },
+            {}
+        );
+
+        if (result.code === 200 && result.data) {
+            state.notices = Array.isArray(result.data) ? result.data : [];
+            renderNoticePanel();
+
+            // 检查未读强制公告
+            const unreadMandatory = state.notices.filter(n => n.mandatory && !n.is_read);
+            if (unreadMandatory.length > 0) {
+                showMandatoryNotice(unreadMandatory[0]);
+            }
+        }
+    } catch (error) {
+        console.error('加载公告失败:', error);
+    }
+};
+
+/**
+ * 渲染公告面板
+ * @returns {void}
+ */
+const renderNoticePanel = () => {
+    if (!state.notices.length) {
+        elements.noticePanel.hide();
+        return;
+    }
+
+    elements.noticePanel.show();
+
+    // 最多显示3条
+    const visibleNotices = state.notices.slice(0, 3);
+
+    elements.noticeList.html(visibleNotices.map(n => `
+        <div class="notice-item" data-notice-id="${n.id}">
+            <div style="flex: 1; min-width: 0;">
+                <div class="notice-content">
+                    ${escapeHtml(n.content)}
+                    ${n.mandatory ? '<span class="notice-badge">强制</span>' : ''}
+                    ${!n.is_read ? '<span style="color: rgb(var(--mdui-color-error)); font-size: 12px; margin-left: 4px;">●</span>' : ''}
+                </div>
+                <div class="notice-meta">
+                    ${formatTime(n.created_at, 'fullDateTime')} · ${n.read_count} 人已读
+                </div>
+            </div>
+            ${!n.is_read ? `<mdui-button class="notice-read-btn" data-notice-id="${n.id}" variant="text" style="font-size: 12px;">已读</mdui-button>` : ''}
+        </div>
+    `).join(''));
+
+    // 绑定已读按钮（阻止冒泡，避免同时触发详情弹窗）
+    elements.noticeList.find('.notice-read-btn').on('click', function (e) {
+        e.stopPropagation();
+        const noticeId = $(this).attr('data-notice-id');
+        markNoticeRead(noticeId);
+    });
+
+    // 绑定点击打开详情弹窗
+    elements.noticeList.find('.notice-item').on('click', function () {
+        const noticeId = $(this).attr('data-notice-id');
+        const notice = state.notices.find(n => n.id == noticeId);
+        if (notice) {
+            showNoticeDetail(notice);
+        }
+    });
+};
+
+/**
+ * 展示强制公告弹窗
+ * @param {Object} notice - 公告对象
+ * @returns {void}
+ */
+const showMandatoryNotice = (notice) => {
+    state.currentMandatoryNotice = notice;
+    elements.mandatoryNoticeContent.text(notice.content);
+    elements.mandatoryNoticeDialog.prop('open', true);
+};
+
+/**
+ * 标记公告已读
+ * @param {string} noticeId - 公告ID
+ * @returns {Promise<void>}
+ */
+const markNoticeRead = async (noticeId) => {
+    try {
+        await HttpUtil.post(
+            `${CORE_CONFIG.API_URL}/rooms/notice?method=mark-read`,
+            {
+                room_id: state.currentRoomInfo.id,
+                notice_id: noticeId
+            },
+            {
+                headers: { 'Content-Type': 'application/json' }
+            }
+        );
+
+        // 更新本地状态
+        const notice = state.notices.find(n => n.id === noticeId);
+        if (notice) {
+            notice.is_read = true;
+            notice.read_count = (notice.read_count || 0) + 1;
+        }
+        renderNoticePanel();
+    } catch (error) {
+        console.error('标记已读失败:', error);
+    }
+};
+
+/**
+ * 确认强制公告已读
+ * @returns {Promise<void>}
+ */
+const confirmMandatoryNotice = async () => {
+    if (state.currentMandatoryNotice) {
+        await markNoticeRead(state.currentMandatoryNotice.id);
+        state.currentMandatoryNotice = null;
+    }
+    elements.mandatoryNoticeDialog.prop('open', false);
+
+    // 检查是否还有未读强制公告
+    const nextUnread = state.notices.find(n => n.mandatory && !n.is_read);
+    if (nextUnread) {
+        showMandatoryNotice(nextUnread);
+    }
+};
+
+/**
+ * 展示公告详情弹窗（点击 notice-item 触发）
+ * @param {Object} notice - 公告对象
+ * @returns {void}
+ */
+const showNoticeDetail = (notice) => {
+    elements.noticeDetailContent.text(notice.content);
+    elements.noticeDetailMeta.text(
+        `${formatTime(notice.created_at, 'fullDateTime')} · ${notice.read_count} 人已读` +
+        (notice.mandatory ? ' · 强制阅读' : '')
+    );
+    elements.noticeDetailDialog.prop('open', true);
+};
+
+/**
+ * 打开所有公告弹窗（侧边栏"聊天室公告"入口）
+ * @returns {Promise<void>}
+ */
+const openAllNoticesDialog = async () => {
+    elements.allNoticesDialog.prop('open', true);
+    elements.allNoticesLoading.show();
+    elements.allNoticesContent.hide();
+
+    try {
+        const result = await HttpUtil.get(
+            `${CORE_CONFIG.API_URL}/rooms/notice`,
+            { room_id: state.currentRoomInfo.id },
+            {}
+        );
+
+        if (result.code === 200 && result.data) {
+            const notices = Array.isArray(result.data) ? result.data : [];
+            state.notices = notices;
+            renderAllNoticesList(notices);
+        }
+    } catch (error) {
+        console.error('加载公告列表失败:', error);
+        mdui.snackbar({ message: '加载失败，请重试' });
+    } finally {
+        elements.allNoticesLoading.hide();
+        elements.allNoticesContent.show();
+    }
+};
+
+/**
+ * 渲染所有公告列表（侧边栏入口弹窗）
+ * @param {Array} notices - 公告列表
+ * @returns {void}
+ */
+const renderAllNoticesList = (notices) => {
+    if (!notices.length) {
+        elements.allNoticesList.html(
+            '<div style="text-align: center; padding: 24px; color: rgb(var(--mdui-color-on-surface-variant));">暂无公告</div>'
+        );
+        return;
+    }
+
+    elements.allNoticesList.html(notices.map(n => `
+        <div class="notice-all-item">
+            <div class="notice-all-content">
+                ${escapeHtml(n.content)}
+                ${n.mandatory ? '<span class="notice-badge">强制</span>' : ''}
+                ${!n.is_read ? '<span style="color: rgb(var(--mdui-color-error)); font-size: 12px; margin-left: 4px;">● 未读</span>' : ''}
+            </div>
+            <div class="notice-all-meta">
+                ${formatTime(n.created_at, 'fullDateTime')} · ${n.read_count} 人已读
+            </div>
+        </div>
+    `).join(''));
+};
+
+/**
+ * 打开管理公告对话框
+ * @returns {Promise<void>}
+ */
+const openManageNoticeDialog = async () => {
+    elements.manageNoticeDialog.prop('open', true);
+    elements.manageNoticeLoading.show();
+    elements.manageNoticeContent.hide();
+
+    try {
+        const result = await HttpUtil.get(
+            `${CORE_CONFIG.API_URL}/rooms/notice`,
+            { room_id: state.currentRoomInfo.id },
+            {}
+        );
+
+        if (result.code === 200 && result.data) {
+            const notices = Array.isArray(result.data) ? result.data : [];
+            state.notices = notices;
+            renderManageNoticeList(notices);
+        }
+    } catch (error) {
+        console.error('加载公告管理失败:', error);
+        mdui.snackbar({ message: '加载失败，请重试' });
+    } finally {
+        elements.manageNoticeLoading.hide();
+        elements.manageNoticeContent.show();
+    }
+};
+
+/**
+ * 渲染管理公告列表
+ * @param {Array} notices - 公告列表
+ * @returns {void}
+ */
+const renderManageNoticeList = (notices) => {
+    if (!notices.length) {
+        elements.manageNoticeList.html('<div style="text-align: center; padding: 24px; color: rgb(var(--mdui-color-on-surface-variant));">暂无公告</div>');
+        return;
+    }
+
+    elements.manageNoticeList.html(notices.map(n => `
+        <div class="notice-manage-item">
+            <div class="notice-manage-content">
+                <div>${escapeHtml(n.content)} ${n.mandatory ? '<span class="notice-badge">强制</span>' : ''}</div>
+                <div class="notice-manage-meta">${formatTime(n.created_at, 'fullDateTime')} · ${n.read_count} 人已读</div>
+            </div>
+            <mdui-button-icon icon="delete" data-notice-id="${n.id}" class="deleteNoticeBtn" title="删除"></mdui-button-icon>
+        </div>
+    `).join(''));
+
+    // 绑定删除按钮
+    elements.manageNoticeList.find('.deleteNoticeBtn').on('click', function () {
+        const noticeId = $(this).attr('data-notice-id');
+        deleteNotice(noticeId);
+    });
+};
+
+/**
+ * 添加公告
+ * @returns {Promise<void>}
+ */
+const addNotice = async () => {
+    const content = elements.newNoticeContent.val().trim();
+    if (!content) {
+        mdui.snackbar({ message: '请输入公告内容' });
+        return;
+    }
+
+    if (content.length > 500) {
+        mdui.snackbar({ message: '公告内容不能超过500字符' });
+        return;
+    }
+
+    const mandatory = elements.newNoticeMandatory.prop('checked');
+
+    const $btn = elements.addNoticeBtn;
+    $btn.attr('loading', '').attr('disabled', '');
+
+    try {
+        const result = await HttpUtil.post(
+            `${CORE_CONFIG.API_URL}/rooms/notice?method=add-notice`,
+            {
+                room_id: state.currentRoomInfo.id,
+                content: content,
+                mandatory: mandatory
+            },
+            {
+                headers: { 'Content-Type': 'application/json' }
+            }
+        );
+
+        if (result.code === 200) {
+            elements.newNoticeContent.val('');
+            elements.newNoticeMandatory.prop('checked', false);
+            mdui.snackbar({ message: '公告已添加' });
+
+            // 重新加载公告列表
+            await openManageNoticeDialog();
+            await loadNotices();
+        } else {
+            mdui.snackbar({ message: result.message || '添加失败' });
+        }
+    } catch (error) {
+        console.error('添加公告失败:', error);
+        mdui.snackbar({ message: '添加失败，请重试' });
+    } finally {
+        $btn.removeAttr('loading').removeAttr('disabled');
+    }
+};
+
+/**
+ * 删除公告
+ * @param {string} noticeId - 公告ID
+ * @returns {Promise<void>}
+ */
+const deleteNotice = async (noticeId) => {
+    if (!confirm('确定要删除这条公告吗？')) return;
+
+    try {
+        const result = await HttpUtil.post(
+            `${CORE_CONFIG.API_URL}/rooms/notice?method=delete-notice`,
+            {
+                room_id: state.currentRoomInfo.id,
+                notice_id: noticeId
+            },
+            {
+                headers: { 'Content-Type': 'application/json' }
+            }
+        );
+
+        if (result.code === 200) {
+            mdui.snackbar({ message: '公告已删除' });
+            await openManageNoticeDialog();
+            await loadNotices();
+        } else {
+            mdui.snackbar({ message: result.message || '删除失败' });
+        }
+    } catch (error) {
+        console.error('删除公告失败:', error);
+        mdui.snackbar({ message: '删除失败，请重试' });
+    }
+};
+
+/**
+ * HTML 转义
+ * @param {string} str
+ * @returns {string}
+ */
+const escapeHtml = (str) => {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+};
+
+/**
+ * 打开编辑器对话框
+ * @param {boolean} showToolbar - 是否显示格式工具栏
+ * @returns {void}
+ */
+const openEditorDialog = (showToolbar = false) => {
+    const content = elements.chatInput.val() || '';
+    elements.editorContent.html(content);
+
+    if (showToolbar) {
+        elements.editorToolbar.show();
+    } else {
+        elements.editorToolbar.hide();
+    }
+
+    elements.editorDialog.prop('open', true);
+
+    // 延迟聚焦，等对话框动画完成
+    setTimeout(() => {
+        elements.editorContent[0].focus();
+    }, 200);
+};
+
+/**
+ * 处理编辑器工具栏操作
+ * @param {string} action - 工具栏操作类型
+ * @returns {void}
+ */
+const handleEditorToolbarAction = (action) => {
+    // 确保编辑器获得焦点
+    elements.editorContent[0].focus();
+
+    switch (action) {
+        case 'bold':
+            document.execCommand('bold', false, null);
+            break;
+        case 'italic':
+            document.execCommand('italic', false, null);
+            break;
+        case 'strikethrough':
+            document.execCommand('strikeThrough', false, null);
+            break;
+        case 'heading':
+            document.execCommand('formatBlock', false, '<h3>');
+            break;
+        case 'code':
+            document.execCommand('insertHTML', false, '<code>代码</code>');
+            break;
+        case 'codeblock': {
+            const sel = window.getSelection();
+            if (sel.rangeCount > 0 && sel.toString()) {
+                const text = sel.toString();
+                document.execCommand('insertHTML', false, `<pre><code>${text}</code></pre>`);
+            } else {
+                document.execCommand('insertHTML', false, '<pre><code>\n</code></pre>');
+            }
+            break;
+        }
+        case 'quote':
+            document.execCommand('formatBlock', false, '<blockquote>');
+            break;
+        case 'ul':
+            document.execCommand('insertUnorderedList', false, null);
+            break;
+        case 'ol':
+            document.execCommand('insertOrderedList', false, null);
+            break;
+        case 'link': {
+            const url = prompt('请输入链接地址', 'https://');
+            if (url) {
+                document.execCommand('createLink', false, url);
+            }
+            break;
+        }
+        case 'image': {
+            const url = prompt('请输入图片地址', 'https://');
+            if (url) {
+                document.execCommand('insertImage', false, url);
+            }
+            break;
+        }
+        case 'table':
+            document.execCommand('insertHTML', false,
+                '<table><thead><tr><th>列1</th><th>列2</th><th>列3</th></tr></thead>' +
+                '<tbody><tr><td>内容</td><td>内容</td><td>内容</td></tr></tbody></table>');
+            break;
+        case 'hr':
+            document.execCommand('insertHorizontalRule', false, null);
+            break;
+        case 'clearFormat':
+            document.execCommand('removeFormat', false, null);
+            break;
+    }
+};
+
+/**
+ * 跳出内联格式标签：将光标从标签末尾内移到标签之外
+ * 防止后续输入的内容继续继承上一个格式化标签
+ * @returns {void}
+ */
+const jumpOutOfInlineFormat = () => {
+    const sel = window.getSelection();
+    if (!sel.rangeCount) return;
+    const range = sel.getRangeAt(0);
+    const inlineTags = ['B', 'STRONG', 'I', 'EM', 'S', 'STRIKE', 'DEL', 'CODE', 'A'];
+
+    let node = range.endContainer;
+    while (node && node !== elements.editorContent[0]) {
+        if (node.nodeType === Node.ELEMENT_NODE && inlineTags.includes(node.tagName)) {
+            range.setStartAfter(node);
+            range.setEndAfter(node);
+            sel.removeAllRanges();
+            sel.addRange(range);
+            return;
+        }
+        node = node.parentElement;
+    }
+};
+
+/**
+ * 将编辑器富文本 HTML 转换为 Markdown
+ * @param {string} html - 富文本 HTML
+ * @returns {string} Markdown 文本
+ */
+const htmlToMarkdown = (html) => {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+
+    const isEmpty = (s) => !s || !s.trim();
+
+    const convertNode = (node) => {
+        if (node.nodeType === Node.TEXT_NODE) {
+            return node.textContent;
+        }
+        if (node.nodeType !== Node.ELEMENT_NODE) return '';
+
+        const tag = node.tagName.toLowerCase();
+        const children = Array.from(node.childNodes);
+        const content = children.map(convertNode).join('');
+
+        // 跳过空内容（空标签不产生输出）
+        if (isEmpty(content) && !['br', 'hr', 'img'].includes(tag)) return '';
+
+        switch (tag) {
+            case 'b':
+            case 'strong':
+                return isEmpty(content) ? '' : `**${content}**`;
+            case 'i':
+            case 'em':
+                return isEmpty(content) ? '' : `*${content}*`;
+            case 's':
+            case 'strike':
+            case 'del':
+                return isEmpty(content) ? '' : `~~${content}~~`;
+            case 'h2':
+                return isEmpty(content) ? '' : `\n## ${content}\n`;
+            case 'h3':
+                return isEmpty(content) ? '' : `\n### ${content}\n`;
+            case 'h4':
+                return isEmpty(content) ? '' : `\n#### ${content}\n`;
+            case 'blockquote':
+                return isEmpty(content) ? '' : `\n> ${content.replace(/\n/g, '\n> ')}\n`;
+            case 'code':
+                if (node.parentElement && node.parentElement.tagName.toLowerCase() === 'pre') {
+                    return content;
+                }
+                return isEmpty(content) ? '' : '`' + content + '`';
+            case 'pre':
+                return '\n```\n' + content + '\n```\n';
+            case 'a': {
+                const href = node.getAttribute('href') || '';
+                return isEmpty(content) ? '' : `[${content}](${href})`;
+            }
+            case 'img': {
+                const alt = node.getAttribute('alt') || '';
+                const src = node.getAttribute('src') || '';
+                return `![${alt}](${src})`;
+            }
+            case 'ul': {
+                const items = children
+                    .filter(c => c.nodeType === Node.ELEMENT_NODE && c.tagName.toLowerCase() === 'li')
+                    .map(li => convertNode(li))
+                    .filter(s => !isEmpty(s));
+                return items.length ? '\n' + items.map(s => `- ${s}`).join('\n') + '\n' : '';
+            }
+            case 'ol': {
+                const items = children
+                    .filter(c => c.nodeType === Node.ELEMENT_NODE && c.tagName.toLowerCase() === 'li')
+                    .map(li => convertNode(li))
+                    .filter(s => !isEmpty(s));
+                return items.length
+                    ? '\n' + items.map((s, i) => `${i + 1}. ${s}`).join('\n') + '\n'
+                    : '';
+            }
+            case 'li':
+                return content;
+            case 'hr':
+                return '\n---\n';
+            case 'br':
+                return '\n';
+            case 'p':
+                return isEmpty(content) ? '' : content + '\n';
+            case 'div':
+                return isEmpty(content) ? '' : content + '\n';
+            case 'span':
+            case 'font':
+                return content;
+            case 'table': {
+                const rows = node.querySelectorAll('tr');
+                let tableMd = '\n';
+                rows.forEach((row, ri) => {
+                    const cells = row.querySelectorAll('th, td');
+                    const cellContents = Array.from(cells).map(c => c.textContent.trim());
+                    tableMd += '| ' + cellContents.join(' | ') + ' |\n';
+                    if (ri === 0 && node.querySelector('thead')) {
+                        tableMd += '| ' + cellContents.map(() => '---').join(' | ') + ' |\n';
+                    }
+                });
+                return tableMd + '\n';
+            }
+            default:
+                return content;
+        }
+    };
+
+    return convertNode(tmp).replace(/\n{3,}/g, '\n\n').trim();
+};
+
+/**
+ * 处理编辑器粘贴事件：检测 Markdown 文本并自动转换为富文本
+ * @param {Event} e - 粘贴事件
+ * @returns {void}
+ */
+const handleEditorPaste = (e) => {
+    const ev = e.originalEvent || e;
+    const clipboardData = ev.clipboardData;
+    if (!clipboardData) return;
+
+    // 如果有 HTML 数据（从网页/Word 等富文本来源粘贴），保留默认行为
+    const html = clipboardData.getData('text/html');
+    if (html) return;
+
+    const text = clipboardData.getData('text/plain');
+    if (!text) return;
+
+    // 检测 Markdown 特征
+    const hasMd = /(\*\*|__|~~|`|^#{1,6}\s|^\s*[-*+]\s|^\s*\d+\.\s|^\s*>\s|\[.+\]\(.+\)|!\[.*\]\(.+\))/m.test(text);
+    if (!hasMd) return;
+
+    // Markdown → HTML 转换后插入
+    e.preventDefault();
+    const converted = marked.parse(text);
+    document.execCommand('insertHTML', false, converted);
+};
+
+/**
+ * 从编辑器直接发送消息
+ * @returns {void}
+ */
+const sendEditorContent = async () => {
+    const editorEl = elements.editorContent[0];
+    const markdown = htmlToMarkdown(editorEl.innerHTML);
+    const plainText = editorEl.textContent.trim();
+
+    if (!plainText) return;
+
+    elements.editorDialog.prop('open', false);
+
+    const $btn = elements.sendBtn;
+    $btn.attr('loading', '').attr('disabled', '');
+
+    try {
+        const postData = {
+            room_id: state.currentRoomInfo.id,
+            content: markdown || plainText,
+            reply_to: state.replyingTo ? state.replyingTo.id : null,
+            type: 'markdown'
+        };
+
+        await HttpUtil.post(
+            `${CORE_CONFIG.API_URL}/chat/send`,
+            postData,
+            {
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            }
+        );
+
+        poll();
+
+        // 清空编辑器
+        editorEl.innerHTML = '';
+        state.replyingTo = null;
+        elements.replyPreview.hide();
+    } catch (error) {
+        console.error('发送消息失败:', error);
+        mdui.snackbar({
+            message: '发送消息失败，请重试'
+        });
+    } finally {
+        $btn.removeAttr('loading').removeAttr('disabled');
+    }
 };
 
 /**
@@ -2353,7 +3052,6 @@ const openUserInfo = async (userId) => {
         const result = await HttpUtil.get(
             `${CORE_CONFIG.USER_API}/profile/get-info`,
             { user_id: userId },
-            { headers: { 'Authorization': `Bearer ${USER_LOGIN_TOKEN}` } }
         );
 
         const { data } = result;
@@ -2408,7 +3106,6 @@ const poll = async () => {
         const response = await HttpUtil.get(
             `${CORE_CONFIG.API_URL}/chat/new`,
             params,
-            { headers: { 'Authorization': `Bearer ${USER_LOGIN_TOKEN}` } }
         );
 
         if (!state.isPolling || state.currentRoomInfo?.id !== currentRoomId) {
@@ -2555,9 +3252,6 @@ const handleRoomUpdate = async () => {
             `${CORE_CONFIG.API_URL}/rooms/update`,
             formData,
             {
-                headers: {
-                    'Authorization': `Bearer ${USER_LOGIN_TOKEN}`
-                }
             }
         );
 
@@ -2644,7 +3338,6 @@ const initializeEventListeners = () => {
                     room_id: state.currentRoomInfo.id
                 },
                 {
-                    headers: { 'Authorization': `Bearer ${USER_LOGIN_TOKEN}` }
                 }
             );
 
@@ -2681,6 +3374,36 @@ const initializeEventListeners = () => {
     elements.toggleMarkdown.on('click', toggleMarkdownMode);
     elements.uploadFile.on('click', handleFileUpload);
     elements.toggleEmoji.on('click', toggleEmojiPanel);
+
+    // 编辑器对话框事件
+    elements.openEditor.on('click', () => {
+        openEditorDialog(state.isMarkdownEnabled);
+        closeActionBar();
+    });
+    elements.editorToolbar.on('click', 'mdui-button-icon', (e) => {
+        // 保存当前选区以防失焦后丢失
+        const sel = window.getSelection();
+        const range = sel.rangeCount > 0 ? sel.getRangeAt(0).cloneRange() : null;
+        const action = $(e.currentTarget).attr('data-action');
+        if (action) {
+            // 恢复选区后执行操作
+            if (range) {
+                sel.removeAllRanges();
+                sel.addRange(range);
+            }
+            handleEditorToolbarAction(action);
+        }
+    });
+    elements.cancelEditor.on('click', () => {
+        elements.editorDialog.prop('open', false);
+    });
+    elements.clearEditor.on('click', () => {
+        elements.editorContent.html('');
+        elements.editorContent[0].focus();
+    });
+    elements.sendEditorContent.on('click', sendEditorContent);
+    elements.editorContent.on('paste', handleEditorPaste);
+
     elements.openFileManager.on('click', openFileManagerDialog);
     elements.closeActionBar.on('click', closeActionBar);
     elements.fileUploadInput.on('change', executeFileUpload);
@@ -2815,7 +3538,6 @@ const initializeEventListeners = () => {
     document.addEventListener('emoji.upload', async (event) => {
         const { file } = event.detail;
         if (file) {
-            await emojiWidget.uploadCustomEmoji(file, USER_LOGIN_TOKEN, CORE_CONFIG.API_URL);
         }
     });
 
@@ -2825,6 +3547,34 @@ const initializeEventListeners = () => {
 
     elements.cancelDeleteFile.on('click', cancelDeleteFile);
     elements.confirmDeleteFile.on('click', confirmDeleteFile);
+
+    // 公告相关事件
+    elements.closeNoticePanel.on('click', () => {
+        elements.noticePanel.hide();
+    });
+    elements.confirmMandatoryNotice.on('click', confirmMandatoryNotice);
+    elements.manageNoticeBtn.on('click', () => {
+        openManageNoticeDialog();
+        elements.navigationDrawer.prop('open', false);
+    });
+    elements.addNoticeBtn.on('click', addNotice);
+    elements.closeManageNotice.on('click', () => {
+        elements.manageNoticeDialog.prop('open', false);
+    });
+
+    // 公告详情弹窗关闭
+    elements.closeNoticeDetail.on('click', () => {
+        elements.noticeDetailDialog.prop('open', false);
+    });
+
+    // 所有公告弹窗（侧边栏入口）
+    elements.allNoticesBtn.on('click', () => {
+        openAllNoticesDialog();
+        elements.navigationDrawer.prop('open', false);
+    });
+    elements.closeAllNotices.on('click', () => {
+        elements.allNoticesDialog.prop('open', false);
+    });
 };
 
 /**
@@ -2955,7 +3705,6 @@ const initializecurrentRoomInfo = async (roomData) => {
         }, {
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${USER_LOGIN_TOKEN}`
             },
         });
 
@@ -2975,11 +3724,17 @@ const initializecurrentRoomInfo = async (roomData) => {
     }
 
     const isOwner = data.owner_id === CONFIG.ME_USER_ID;
+    state.isOwner = isOwner;
     if (isOwner) {
         $room.updateBtn.css('display', '');
+        elements.manageNoticeBtn.css('display', '');
     } else {
         $room.updateBtn.css('display', 'none');
+        elements.manageNoticeBtn.css('display', 'none');
     }
+
+    // 加载公告
+    loadNotices();
 
     startPolling();
 };
@@ -3024,11 +3779,6 @@ window.addEventListener('message', (event) => {
  */
 const initializeApp = async () => {
     try {
-        if (!USER_LOGIN_TOKEN) {
-            window.location.href = 'login.html';
-            return;
-        }
-
         if (!currentRoomId) {
             return;
         }
@@ -3053,7 +3803,6 @@ const initializeApp = async () => {
         }, {
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${USER_LOGIN_TOKEN}`
             },
         });
 
@@ -3125,6 +3874,9 @@ const cleanupChatRoom = () => {
     state.replyingTo = null;
     state.lastItemTime = 0;
     state.currentRoomInfo = null;
+    state.notices = [];
+    state.currentMandatoryNotice = null;
+    state.isOwner = false;
 
     currentActiveRoomId = null;
     isInitialized = false;
@@ -3162,9 +3914,6 @@ const loadRoomBots = async () => {
             `${CORE_CONFIG.API_URL}/bots/room`,
             { room_id: state.currentRoomInfo.id },
             {
-                headers: {
-                    'Authorization': `Bearer ${USER_LOGIN_TOKEN}`
-                }
             }
         );
 
@@ -3253,9 +4002,6 @@ const openMarketplaceDialog = async () => {
             `${CORE_CONFIG.API_URL}/bots/marketplace`,
             { page: 1, limit: 20 },
             {
-                headers: {
-                    'Authorization': `Bearer ${USER_LOGIN_TOKEN}`
-                }
             }
         );
 
@@ -3337,7 +4083,6 @@ const installBot = async (botId) => {
             {
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${USER_LOGIN_TOKEN}`
                 }
             }
         );
@@ -3378,7 +4123,6 @@ const uninstallBot = async (botId) => {
             {
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${USER_LOGIN_TOKEN}`
                 }
             }
         );

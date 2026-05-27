@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="stylesheet" href="./../src/css/chat.css">
+    <script src="/lib/mdui.global.min.js"></script>
     <script type="module" src="./../src/js/chat.js"></script>
 </head>
 
@@ -68,6 +69,10 @@
                     <mdui-icon slot="icon">edit</mdui-icon>
                     <mdui-list-item-title>更新聊天室信息</mdui-list-item-title>
                 </mdui-list-item>
+                <mdui-list-item id="manageNoticeBtn" rounded style="display: none;">
+                    <mdui-icon slot="icon">campaign</mdui-icon>
+                    <mdui-list-item-title>管理公告</mdui-list-item-title>
+                </mdui-list-item>
                 <mdui-list-item id="manageRoomBots" rounded>
                     <mdui-icon slot="icon">smart_toy</mdui-icon>
                     <mdui-list-item-title>管理机器人</mdui-list-item-title>
@@ -78,6 +83,11 @@
 
             <mdui-list>
                 <mdui-list-subheader>其他功能</mdui-list-subheader>
+
+                <mdui-list-item id="allNoticesBtn" rounded>
+                    <mdui-icon slot="icon">campaign</mdui-icon>
+                    <mdui-list-item-title>聊天室公告</mdui-list-item-title>
+                </mdui-list-item>
 
                 <mdui-list-item id="toggleMute" rounded>
                     <mdui-icon slot="icon">volume_off</mdui-icon>
@@ -103,6 +113,15 @@
             <mdui-button-icon id="navigationDrawertoggle" icon="menu"></mdui-button-icon>
         </mdui-top-app-bar>
 
+        <div id="noticePanel" class="notice-panel" style="display: none;">
+            <div class="notice-panel-header">
+                <mdui-icon>campaign</mdui-icon>
+                <span class="notice-panel-title">聊天室公告</span>
+                <div style="flex-grow: 1;"></div>
+                <mdui-button-icon id="closeNoticePanel" icon="close" style="font-size: 18px;"></mdui-button-icon>
+            </div>
+            <div id="noticeList" class="notice-list"></div>
+        </div>
         <main class="list" id="messageList"></main>
 
         <footer class="footer-container">
@@ -241,8 +260,7 @@
         </div>
     </mdui-dialog>
 
-    <mdui-dialog close-on-overlay-click headline="文件管理" id="fileManagerDialog" close-on-esc
-        style="--mdui-dialog-max-width: 600px;">
+    <mdui-dialog fullscreen close-on-overlay-click headline="文件管理" id="fileManagerDialog" close-on-esc>
         <div style="margin-bottom: 16px;">
             <div id="fileStats" style="display: flex; gap: 16px; flex-wrap: wrap;"></div>
         </div>
@@ -275,6 +293,7 @@
 
     <mdui-bottom-app-bar id="actionBar" hide>
         <mdui-button-icon id="toggleMarkdown" icon="text_format" title="Markdown语法"></mdui-button-icon>
+        <mdui-button-icon id="openEditor" icon="edit_note" title="编辑器"></mdui-button-icon>
         <mdui-button-icon id="uploadFile" icon="attach_file" title="上传文件"></mdui-button-icon>
         <mdui-button-icon id="toggleEmoji" icon="insert_emoticon" title="表情包"></mdui-button-icon>
         <div style="flex-grow: 1"></div>
@@ -283,8 +302,7 @@
 
     <input type="file" id="fileUploadInput" style="display: none;" accept="*">
 
-    <mdui-dialog close-on-overlay-click headline="聊天室机器人" id="roomBotsDialog" close-on-esc
-        style="--mdui-dialog-max-width: 600px;">
+    <mdui-dialog fullscreen close-on-overlay-click headline="聊天室机器人" id="roomBotsDialog" close-on-esc>
         <div id="roomBotsContent">
             <div id="roomBotsLoading" class="mdui-circular-progress-overlay" style="display: flex;">
                 <mdui-circular-progress></mdui-circular-progress>
@@ -315,6 +333,85 @@
         <div slot="action">
             <mdui-button variant="text" id="cancelDeleteFile">取消</mdui-button>
             <mdui-button variant="tonal" id="confirmDeleteFile">删除</mdui-button>
+        </div>
+    </mdui-dialog>
+
+    <mdui-dialog fullscreen close-on-overlay-click headline="编辑器" id="editorDialog" close-on-esc>
+        <div id="editorToolbar" class="editor-toolbar">
+            <mdui-button-icon icon="format_bold" title="加粗" data-action="bold"></mdui-button-icon>
+            <mdui-button-icon icon="format_italic" title="斜体" data-action="italic"></mdui-button-icon>
+            <mdui-button-icon icon="format_strikethrough" title="删除线" data-action="strikethrough"></mdui-button-icon>
+            <mdui-button-icon icon="title" title="标题" data-action="heading"></mdui-button-icon>
+            <mdui-button-icon icon="code" title="行内代码" data-action="code"></mdui-button-icon>
+            <mdui-button-icon icon="data_object" title="代码块" data-action="codeblock"></mdui-button-icon>
+            <mdui-button-icon icon="format_quote" title="引用" data-action="quote"></mdui-button-icon>
+            <mdui-button-icon icon="format_list_bulleted" title="无序列表" data-action="ul"></mdui-button-icon>
+            <mdui-button-icon icon="format_list_numbered" title="有序列表" data-action="ol"></mdui-button-icon>
+            <mdui-button-icon icon="link" title="链接" data-action="link"></mdui-button-icon>
+            <mdui-button-icon icon="image" title="图片" data-action="image"></mdui-button-icon>
+            <mdui-button-icon icon="table_chart" title="表格" data-action="table"></mdui-button-icon>
+            <mdui-button-icon icon="horizontal_rule" title="分割线" data-action="hr"></mdui-button-icon>
+            <span class="editor-toolbar-sep"></span>
+            <mdui-button-icon icon="format_clear" title="清除格式" data-action="clearFormat"></mdui-button-icon>
+        </div>
+        <div id="editorContent" class="editor-content" contenteditable="true" data-placeholder="在此输入内容..."
+            style="min-height: 300px;"></div>
+        <div slot="action">
+            <mdui-button variant="text" id="cancelEditor">取消</mdui-button>
+            <mdui-button variant="text" id="clearEditor">清空</mdui-button>
+            <mdui-button variant="tonal" id="sendEditorContent">发送</mdui-button>
+        </div>
+    </mdui-dialog>
+
+    <mdui-dialog close-on-overlay-click headline="公告详情" id="mandatoryNoticeDialog" close-on-esc>
+        <div id="mandatoryNoticeContent" style="white-space: pre-wrap; line-height: 1.6; padding: 8px 0;"></div>
+        <div slot="action">
+            <mdui-button variant="tonal" id="confirmMandatoryNotice">我已阅读</mdui-button>
+        </div>
+    </mdui-dialog>
+
+    <mdui-dialog close-on-overlay-click headline="公告详情" id="noticeDetailDialog" close-on-esc>
+        <div id="noticeDetailContent" style="white-space: pre-wrap; line-height: 1.6; padding: 8px 0;"></div>
+        <div id="noticeDetailMeta" style="font-size: 12px; color: rgb(var(--mdui-color-on-surface-variant)); margin-bottom: 8px;"></div>
+        <div slot="action">
+            <mdui-button variant="text" id="closeNoticeDetail">关闭</mdui-button>
+        </div>
+    </mdui-dialog>
+
+    <mdui-dialog close-on-overlay-click headline="聊天室公告" id="allNoticesDialog" close-on-esc>
+        <div id="allNoticesLoading" class="mdui-circular-progress-overlay" style="display: flex;">
+            <mdui-circular-progress></mdui-circular-progress>
+        </div>
+        <div id="allNoticesContent" style="max-height: 60vh; overflow-y: auto;">
+            <div id="allNoticesList"></div>
+        </div>
+        <div slot="action">
+            <mdui-button variant="text" id="closeAllNotices">关闭</mdui-button>
+        </div>
+    </mdui-dialog>
+
+    <mdui-dialog close-on-overlay-click headline="管理公告" id="manageNoticeDialog" close-on-esc>
+        <div id="manageNoticeLoading" class="mdui-circular-progress-overlay" style="display: flex;">
+            <mdui-circular-progress></mdui-circular-progress>
+        </div>
+        <div id="manageNoticeContent">
+            <div style="margin-bottom: 12px;">
+                <mdui-text-field id="newNoticeContent" variant="outlined" placeholder="输入公告内容（最长500字符）" multiline rows="3"
+                    style="width: 100%;"></mdui-text-field>
+                <label style="display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 14px;">
+                    <mdui-switch id="newNoticeMandatory"></mdui-switch>
+                    强制阅读
+                </label>
+                <mdui-button variant="tonal" id="addNoticeBtn" style="margin-top: 8px; width: 100%;">
+                    <mdui-icon slot="icon">add</mdui-icon>
+                    添加公告
+                </mdui-button>
+            </div>
+            <mdui-divider style="margin: 12px 0;"></mdui-divider>
+            <div id="manageNoticeList"></div>
+        </div>
+        <div slot="action">
+            <mdui-button variant="text" id="closeManageNotice">关闭</mdui-button>
         </div>
     </mdui-dialog>
 
